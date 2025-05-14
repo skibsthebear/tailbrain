@@ -266,7 +266,7 @@ const DockerNetworksView = () => {
                             colorScheme="red"
                             size="xs"
                             onClick={() => handleDeleteNetwork(network.ID, network.Name)}
-                            isDisabled={actionLoading || ['bridge', 'host', 'none'].includes(driver)}
+                            isDisabled={actionLoading || ['bridge', 'host', 'none'].includes(network.Name)}
                           />
                         </Tooltip>
                       </Flex>
