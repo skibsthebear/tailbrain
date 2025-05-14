@@ -1,12 +1,25 @@
 #!/bin/bash
-# Script to start the host command relay and then build and run Docker Compose
+# Script to start TailBrain with proper initialization sequence
+
+echo "Stopping any running Docker containers..."
+docker-compose down
+
+echo "==================================================="
+echo "IMPORTANT: Make sure to run \"npm run relay:install\"" 
+echo "before continuing if you haven't already installed"
+echo "the required dependencies."
+echo "==================================================="
+echo ""
+read -p "Press any key to continue..." -n1 -s
+echo ""
 
 echo "Starting Host Command Relay in the background..."
 node start-relay.js &
 RELAY_PID=$!
 
 # Give the relay a moment to start
-sleep 2
+echo "Waiting for relay to initialize..."
+sleep 3
 
 echo "Building Docker images..."
 docker-compose build

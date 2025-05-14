@@ -56,7 +56,7 @@ This is the easiest and recommended way to get TailBrain up and running! It uses
     ```
 
 2.  **🛠️ Install Host Command Relay Dependencies:**
-    (This step only needs to be run once, or when `express` or `cors` dependencies for the relay need an update.)
+    (This step is required before running the startup scripts. The dependencies need to be installed separately to avoid blocking the script execution.)
 
     ```bash
     npm run relay:install
@@ -78,13 +78,24 @@ This is the easiest and recommended way to get TailBrain up and running! It uses
       ./start-dev.sh
       ```
 
-      This will start the Host Command Relay in the background, build/rebuild the Docker images, and then start the services.
+      The script will:
+
+      - Stop any running Docker containers
+      - Remind you to install relay dependencies if you haven't yet
+      - Start the Host Command Relay in the background
+      - Build/rebuild the Docker images
+      - Start the services in detached mode
 
     - **🪟 For Windows:**
       ```bash
       start-dev.bat
       ```
-      This will start the Host Command Relay in a new command prompt window, build/rebuild the Docker images, and then start the services.
+      The script will:
+      - Stop any running Docker containers
+      - Remind you to install relay dependencies if you haven't yet
+      - Start the Host Command Relay in a new command prompt window
+      - Build/rebuild the Docker images
+      - Start the services in detached mode
 
     🎉 **Access TailBrain:** Once everything is up, open your browser and go to `http://localhost:7654`.
     The Host Command Relay will be running on port `7655`.

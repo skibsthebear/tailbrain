@@ -1,9 +1,19 @@
 @echo off
-REM Script to start the host command relay and then build and run Docker Compose
+REM Script to start TailBrain with proper initialization sequence
+
+echo Stopping any running Docker containers...
+docker-compose down
+
+echo ===================================================
+echo IMPORTANT: Make sure to run "npm run relay:install" 
+echo before continuing if you haven't already installed
+echo the required dependencies.
+echo ===================================================
+echo.
+pause
 
 echo Starting Host Command Relay in a new window...
 REM Start the relay in a new command prompt window.
-REM The "" is for the title of the new window, can be left empty.
 start "Host Relay" node start-relay.js
 
 REM Give the relay a moment to start
