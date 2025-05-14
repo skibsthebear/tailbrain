@@ -10,6 +10,7 @@ services:
       - "7654:7654"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - tailbrain_data:/app/data
     privileged: true
     restart: unless-stopped
     environment:
@@ -18,3 +19,7 @@ services:
       - HOST_RELAY_URL=http://host.docker.internal:7655
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  tailbrain_data:
+    driver: local

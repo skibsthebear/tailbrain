@@ -147,6 +147,14 @@ The Docker Compose management feature allows you to:
 3. Run `docker-compose down` to stop and remove containers
 4. View all registered Docker Compose applications
 
+### Data Persistence
+
+The Docker Compose configurations you add are now stored persistently in a Docker volume. This means:
+
+- Your configurations will survive container restarts
+- You won't lose your registered Docker Compose applications when upgrading TailBrain
+- The configurations are stored in a JSON file at `/app/data/compose-apps.json` inside the container
+
 Important notes:
 
 - The path you provide must be accessible to the TailBrain backend

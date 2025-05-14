@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
 
 const {
   getTailscaleServeStatus,
@@ -18,8 +19,43 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// In-memory store for Docker Compose applications
+// File storage for Docker Compose applications
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '../data');
+const COMPOSE_CONFIG_FILE = path.join(DATA_DIR, 'compose-apps.json');
+
+// Create data directory if it doesn't exist
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  console.log(`Created data directory at ${DATA_DIR}`);
+}
+
+// Load Docker Compose apps from file or initialize with empty array
 let dockerComposeApps = [];
+try {
+  if (fs.existsSync(COMPOSE_CONFIG_FILE)) {
+    const data = fs.readFileSync(COMPOSE_CONFIG_FILE, 'utf8');
+    dockerComposeApps = JSON.parse(data);
+    console.log(`Loaded ${dockerComposeApps.length} Docker Compose apps from ${COMPOSE_CONFIG_FILE}`);
+  } else {
+    // Create empty file if it doesn't exist
+    fs.writeFileSync(COMPOSE_CONFIG_FILE, JSON.stringify([], null, 2));
+    console.log(`Created empty Docker Compose apps file at ${COMPOSE_CONFIG_FILE}`);
+  }
+} catch (err) {
+  console.error(`Error loading Docker Compose apps from file: ${err.message}`);
+}
+
+// Function to save Docker Compose apps to file
+function saveDockerComposeApps() {
+  try {
+    fs.writeFileSync(COMPOSE_CONFIG_FILE, JSON.stringify(dockerComposeApps, null, 2));
+    console.log(`Saved ${dockerComposeApps.length} Docker Compose apps to ${COMPOSE_CONFIG_FILE}`);
+    return true;
+  } catch (err) {
+    console.error(`Error saving Docker Compose apps to file: ${err.message}`);
+    return false;
+  }
+}
 
 app.use(cors());
 app.use(express.json());
@@ -129,7 +165,13 @@ app.post('/api/docker-compose/apps', (req, res) => {
   const newApp = { id: uuidv4(), name, path: composePath };
   dockerComposeApps.push(newApp);
   console.log('Added Docker Compose app:', newApp);
-  res.status(201).json(newApp);
+  
+  // Save to file
+  if (saveDockerComposeApps()) {
+    res.status(201).json(newApp);
+  } else {
+    res.status(500).json({ error: 'Failed to save Docker Compose app configuration' });
+  }
 });
 
 app.delete('/api/docker-compose/apps/:id', (req, res) => {
@@ -138,7 +180,13 @@ app.delete('/api/docker-compose/apps/:id', (req, res) => {
   dockerComposeApps = dockerComposeApps.filter(app => app.id !== id);
   if (dockerComposeApps.length < initialLength) {
     console.log('Deleted Docker Compose app with id:', id);
-    res.status(200).json({ message: 'Docker Compose app removed' });
+    
+    // Save to file
+    if (saveDockerComposeApps()) {
+      res.status(200).json({ message: 'Docker Compose app removed' });
+    } else {
+      res.status(500).json({ error: 'Failed to save updated Docker Compose app configuration' });
+    }
   } else {
     res.status(404).json({ error: 'Docker Compose app not found' });
   }

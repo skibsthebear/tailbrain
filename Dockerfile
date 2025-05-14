@@ -18,6 +18,9 @@ RUN npm install --prefix backend
 # Copy the rest of the application
 COPY . .
 
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chmod 777 /app/data
+
 # Make host command relay scripts executable (for Linux environments)
 RUN chmod +x host-command-relay.js start-relay.js || true
 
