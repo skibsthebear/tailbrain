@@ -3,6 +3,7 @@ import { RepeatIcon } from '@chakra-ui/icons';
 import ServePortsView from './components/ServePortsView';
 import FunnelPortsView from './components/FunnelPortsView';
 import DockerContainersView from './components/DockerContainersView';
+import DockerComposeView from './components/DockerComposeView';
 import React, { useEffect, useState } from 'react'; // Added useState
 import { useAppContext } from './context/AppContext'; // Import useAppContext
 
@@ -121,6 +122,7 @@ function App() {
               <Tab>Tailscale Serve</Tab>
               <Tab>Tailscale Funnel</Tab>
               <Tab>Docker Containers</Tab>
+              <Tab>Docker Compose</Tab>
             </TabList>
             <TabPanels>
               <TabPanel>
@@ -136,6 +138,11 @@ function App() {
               <TabPanel>
                 <ErrorBoundary>
                   <DockerContainersView />
+                </ErrorBoundary>
+              </TabPanel>
+              <TabPanel>
+                <ErrorBoundary>
+                  <DockerComposeView />
                 </ErrorBoundary>
               </TabPanel>
             </TabPanels>

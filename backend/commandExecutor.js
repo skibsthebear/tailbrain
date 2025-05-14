@@ -1,4 +1,5 @@
 const { exec } = require('child_process');
+const path = require('path'); // Added path module
 
 // Placeholder for actual parsing logic, to be implemented in the next step
 function parseServeOutput(stdout) {
@@ -213,6 +214,54 @@ function removeTailscaleFunnelPort(port, protocol = 'tcp') {
   });
 }
 
+// New function to execute docker-compose up
+function executeDockerComposeUp(composeFilePath) {
+  return new Promise((resolve, reject) => {
+    if (!composeFilePath) {
+      return reject(new Error('Docker Compose file path is required'));
+    }
+    const workDir = path.dirname(composeFilePath);
+    const fileName = path.basename(composeFilePath);
+    const command = `docker-compose -f "${fileName}" up -d`;
+
+    exec(command, { cwd: workDir }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error executing docker-compose up for ${fileName} in ${workDir}:`, stderr || error.message);
+        return reject(new Error(`Failed to run docker-compose up: ${stderr || error.message}`));
+      }
+      if (stderr) {
+        console.warn(`Stderr from docker-compose up for ${fileName} in ${workDir}:`, stderr);
+      }
+      console.log(`docker-compose up successful for ${fileName} in ${workDir}:`, stdout);
+      resolve({ success: true, message: 'Docker Compose up executed successfully', output: stdout });
+    });
+  });
+}
+
+// New function to execute docker-compose down
+function executeDockerComposeDown(composeFilePath) {
+  return new Promise((resolve, reject) => {
+    if (!composeFilePath) {
+      return reject(new Error('Docker Compose file path is required'));
+    }
+    const workDir = path.dirname(composeFilePath);
+    const fileName = path.basename(composeFilePath);
+    const command = `docker-compose -f "${fileName}" down`;
+
+    exec(command, { cwd: workDir }, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error executing docker-compose down for ${fileName} in ${workDir}:`, stderr || error.message);
+        return reject(new Error(`Failed to run docker-compose down: ${stderr || error.message}`));
+      }
+      if (stderr) {
+        console.warn(`Stderr from docker-compose down for ${fileName} in ${workDir}:`, stderr);
+      }
+      console.log(`docker-compose down successful for ${fileName} in ${workDir}:`, stdout);
+      resolve({ success: true, message: 'Docker Compose down executed successfully', output: stdout });
+    });
+  });
+}
+
 module.exports = {
   getTailscaleServeStatus,
   getTailscaleFunnelStatus,
@@ -221,4 +270,6 @@ module.exports = {
   removeTailscaleServePort,
   addTailscaleFunnelPort,
   removeTailscaleFunnelPort,
+  executeDockerComposeUp,
+  executeDockerComposeDown,
 }; 

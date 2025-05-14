@@ -95,4 +95,55 @@ export const removeFunnelPort = async (port, protocol = 'tcp') => {
     console.error('Error removing Tailscale funnel port:', error);
     throw error;
   }
+};
+
+// Docker Compose API functions
+export const getDockerComposeApps = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/docker-compose/apps`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching Docker Compose apps:', error);
+    throw error;
+  }
+};
+
+export const addDockerComposeApp = async (name, path) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker-compose/apps`, { name, path });
+    return response.data;
+  } catch (error) {
+    console.error('Error adding Docker Compose app:', error);
+    throw error;
+  }
+};
+
+export const removeDockerComposeApp = async (id) => {
+  try {
+    const response = await axios.delete(`${API_URL}/docker-compose/apps/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error removing Docker Compose app:', error);
+    throw error;
+  }
+};
+
+export const dockerComposeUp = async (filePath) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker-compose/up`, { filePath });
+    return response.data;
+  } catch (error) {
+    console.error('Error executing docker-compose up:', error);
+    throw error;
+  }
+};
+
+export const dockerComposeDown = async (filePath) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker-compose/down`, { filePath });
+    return response.data;
+  } catch (error) {
+    console.error('Error executing docker-compose down:', error);
+    throw error;
+  }
 }; 
