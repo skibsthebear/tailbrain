@@ -1,61 +1,71 @@
-# TailBrain
+<div align="center">
+  <img src="logo.png" alt="TailBrain Logo" width="150"/>
+  <h1>✨ TailBrain ✨</h1>
+</div>
 
-A web dashboard to monitor and manage Tailscale serve/funnel ports, Docker containers, and Docker Compose applications.
+**A web dashboard to monitor and manage Tailscale serve/funnel ports, Docker containers, and Docker Compose applications.**
 
-## Features
+---
 
-- Monitor Tailscale serve ports
-- Monitor Tailscale funnel configurations
-- View Docker containers with clickable links to services
-- Add/remove Tailscale serve ports
-- Add/remove Tailscale funnel ports
-- Manage Docker Compose applications (up/down)
+## 🚀 Features
 
-## Requirements
+- 👀 Monitor Tailscale `serve` ports
+- 📡 Monitor Tailscale `funnel` configurations
+- 🐳 View Docker containers with clickable links to services
+- ➕ Add/remove Tailscale `serve` ports
+- ➖ Add/remove Tailscale `funnel` ports
+- 🚢 Manage Docker Compose applications (`up`/`down`)
 
-- Docker
-- Docker Compose (for deployment and Docker Compose management)
-- Tailscale installed on the host machine
-- Node.js v16+ (for development only)
+---
 
-## Platform Compatibility
+## 📋 Requirements
 
-TailBrain is designed to work on both Windows and Linux systems. However, there are some important considerations:
+- 🐳 **Docker & Docker Compose**: For deployment and Docker Compose management.
+- <img src="https://tailscale.com/static/images/logo.svg" width="16"/> **Tailscale**: Installed and configured on the host machine.
+- <img src="https://nodejs.org/static/images/logo.svg" width="16"/> **Node.js**: v16+ (primarily for the Host Command Relay and optional local development).
 
-### Windows Users
+---
 
-- Ensure Docker Desktop is installed and running
-- Use Windows paths for Docker Compose file locations (e.g., `C:\path\to\docker-compose.yml`)
-- If using WSL2, make sure paths are accessible to the backend service
+## 🖥️ Platform Compatibility
 
-### Linux Users
+TailBrain is designed to work on both Windows and Linux systems.
 
-- Ensure Docker and Docker Compose are installed
-- Use Linux paths for Docker Compose file locations (e.g., `/path/to/docker-compose.yml`)
-- Make sure the user running TailBrain has permissions to access the Docker socket
+### 🪟 Windows Users
 
-## Running with Docker (Recommended)
+- Ensure Docker Desktop is installed and running.
+- Use standard Windows paths for Docker Compose file locations (e.g., `C:\path\to\docker-compose.yml`).
+- If using WSL2, ensure paths are accessible to the backend service.
 
-This method uses Docker Compose and includes starting the Host Command Relay automatically.
+### 🐧 Linux Users
 
-1.  Clone this repository:
+- Ensure Docker and Docker Compose are installed.
+- Use standard Linux paths for Docker Compose file locations (e.g., `/path/to/docker-compose.yml`).
+- Make sure the user running TailBrain has permissions to access the Docker socket (see [Troubleshooting](#docker-socket-access)).
+
+---
+
+## 🐳 Running TailBrain with Docker (Recommended)
+
+This is the easiest and recommended way to get TailBrain up and running! It uses Docker Compose and includes starting the Host Command Relay automatically.
+
+1.  **📥 Clone the Repository:**
 
     ```bash
-    git clone <repository-url>
+    git clone <repository-url> # Replace <repository-url> with the actual URL
     cd tailbrain
     ```
 
-2.  Install Host Command Relay dependencies (if you haven't already):
+2.  **🛠️ Install Host Command Relay Dependencies:**
+    (This step only needs to be run once, or when `express` or `cors` dependencies for the relay need an update.)
 
     ```bash
     npm run relay:install
     ```
 
-    This step only needs to be run once, or when `express` or `cors` dependencies for the relay need an update.
+3.  **🚀 Start the Application:**
+    Run the appropriate start script for your Operating System:
 
-3.  Run the appropriate start script for your OS:
-
-    - **For Linux/macOS:**
+    - **🐧 For Linux/macOS:**
       Make the script executable (if you haven't already):
 
       ```bash
@@ -68,205 +78,172 @@ This method uses Docker Compose and includes starting the Host Command Relay aut
       ./start-dev.sh
       ```
 
-      This will start the Host Command Relay in the background, build the Docker images, and then start the services.
+      This will start the Host Command Relay in the background, build/rebuild the Docker images, and then start the services.
 
-    - **For Windows:**
+    - **🪟 For Windows:**
       ```bash
       start-dev.bat
       ```
-      This will start the Host Command Relay in a new window, build the Docker images, and then start the services.
+      This will start the Host Command Relay in a new command prompt window, build/rebuild the Docker images, and then start the services.
 
-The application will be available at `http://localhost:7654`. The Host Command Relay will be running on port `7655`.
+    🎉 **Access TailBrain:** Once everything is up, open your browser and go to `http://localhost:7654`.
+    The Host Command Relay will be running on port `7655`.
 
-To stop the Docker services, navigate to the `tailbrain` directory in a terminal and run:
+4.  **🛑 Stopping TailBrain:**
+    - **Docker Services:** Navigate to the `tailbrain` directory in a terminal and run:
+      ```bash
+      docker-compose down
+      ```
+    - **Host Command Relay:**
+      - On Linux/macOS: If you noted the PID from the `start-dev.sh` script, use `kill <PID>`. Otherwise, you may need to find and kill the `node start-relay.js` process manually.
+      - On Windows: Close the "Host Relay" command prompt window that was opened by `start-dev.bat`.
 
-```bash
-docker-compose down
-```
+---
 
-To stop the Host Command Relay:
+## 📡 Understanding the Host Command Relay
 
-- On Linux/macOS, if you noted the PID, use `kill <PID>`. Otherwise, you may need to find and kill the `node start-relay.js` process.
-- On Windows, close the "Host Relay" command prompt window.
+TailBrain uses a special **Host Command Relay** system. This allows the Docker container (where TailBrain's backend runs) to securely execute specific commands (like `tailscale` and `docker-compose`) on your host machine.
 
-## Host Command Relay
+- **How it works:** The `start-dev.sh` or `start-dev.bat` script starts a small Node.js server (`host-command-relay.js`) directly on your host.
+- This server listens on port `7655` by default.
+- The TailBrain Docker container (configured in `docker-compose.yml`) sends commands to this relay server at `http://host.docker.internal:7655`.
+- **Security:** This is more secure than giving the container full Docker socket access or other broad permissions on the host, as only predefined command patterns are allowed.
 
-TailBrain uses a special Host Command Relay system that allows the Docker container to execute commands on the host machine. This is particularly useful for running Tailscale and Docker commands that need to operate on the host system.
+---
 
-The `start-dev.sh` (for Linux/macOS) and `start-dev.bat` (for Windows) scripts handle starting the Host Command Relay for you.
+## 🎆 Using with Tailscale
 
-The relay script (`host-command-relay.js`) runs on your host machine and listens on port `7655` by default. The Docker container is configured via the `HOST_RELAY_URL` environment variable in the `docker-compose.yml` file to communicate with `http://host.docker.internal:7655`.
+For TailBrain to manage Tailscale `serve` and `funnel` ports:
 
-This relay approach is more secure than giving the container full access to the host system, as it only allows execution of specific commands via a controlled API.
+- Ensure Tailscale is installed and running on your host machine.
+- The `tailscale` command must be available in your system's PATH.
+  - On Windows, you might need to add the Tailscale installation directory to your PATH.
+- Commands executed by TailBrain affect your host's Tailscale configuration directly.
 
-## Accessing the Application
+---
 
-Once running, access the dashboard by navigating to:
+## 🗂️ Docker Compose Management
 
-```
-http://localhost:7654
-```
+TailBrain allows you to manage your Docker Compose applications through its interface:
 
-## Using with Tailscale
+- 📝 Add Docker Compose applications with a friendly name and the path to the compose file.
+- 🚀 Run `docker-compose up -d` on your applications with a single click.
+- 🛑 Run `docker-compose down` to stop and remove application containers.
+- 📋 View all registered Docker Compose applications.
 
-For the application to work properly, you need to have Tailscale installed and running on the host machine. The application uses the `tailscale` CLI commands to manage serve and funnel ports.
+### 💾 Data Persistence for Compose Apps
 
-- Ensure the `tailscale` command is available in your system's PATH
-- On Windows, you may need to add the Tailscale installation directory to your PATH if it's not already there
-- The container maps to the host's Tailscale configuration, so all commands affect your host's Tailscale setup
+Your Docker Compose application configurations (name and path) are stored persistently:
 
-## Docker Compose Management
+- Stored in a Docker volume named `tailbrain_data`.
+- Located at `/app/data/compose-apps.json` inside the TailBrain container.
+- This means your configurations will survive container restarts and updates.
 
-The Docker Compose management feature allows you to:
+> **Important Note:** Paths to `docker-compose.yml` files must be accessible _from the context where the command relay executes them on the host_. Usually, these would be absolute paths on your host machine.
 
-1. Add Docker Compose applications with a friendly name and path to the compose file
-2. Run `docker-compose up -d` on your compose files with a single click
-3. Run `docker-compose down` to stop and remove containers
-4. View all registered Docker Compose applications
+---
 
-### Data Persistence
+## 🛠️ Development Setup (Advanced)
 
-The Docker Compose configurations you add are now stored persistently in a Docker volume. This means:
+If you want to contribute to TailBrain or run the frontend/backend services locally _without Docker_ for development purposes:
 
-- Your configurations will survive container restarts
-- You won't lose your registered Docker Compose applications when upgrading TailBrain
-- The configurations are stored in a JSON file at `/app/data/compose-apps.json` inside the container
+1.  **📥 Clone Repository** (if not already done).
+2.  **📦 Install Dependencies:**
+    ```bash
+    npm install # For root dependencies & relay
+    npm install --prefix frontend
+    npm install --prefix backend
+    ```
+3.  **⚙️ Start Development Servers:**
+    ```bash
+    npm run dev
+    ```
+    This will start the Vite frontend dev server and the Node.js backend dev server concurrently. You'll also need to manually run the **Host Command Relay** (`npm run relay` or `node start-relay.js`) on your host if the backend needs to execute host commands.
 
-Important notes:
+---
 
-- The path you provide must be accessible to the TailBrain backend
-- When running in Docker, the path must be accessible from within the container
-- Consider using volume mounts if needed to make your Docker Compose files accessible
+## 🔍 Troubleshooting
 
-## Development Setup
+### ⚠️ Docker Socket Access Denied
 
-If you want to run the application in development mode:
+If you see an error like: `Got permission denied while trying to connect to the Docker daemon socket`
 
-1. Clone the repository:
+- **Linux:** Ensure your user is part of the `docker` group:
+  ```bash
+  sudo usermod -aG docker $USER
+  ```
+  Then, **log out and log back in** for the group change to take effect.
 
-   ```bash
-   git clone <repository-url>
-   cd tailbrain
-   ```
+### ❓ Tailscale Command Not Found
 
-2. Install dependencies:
+If TailBrain reports it can't find the `tailscale` command:
 
-   ```bash
-   npm install
-   npm install --prefix frontend
-   npm install --prefix backend
-   ```
+1.  Verify Tailscale is installed on your host.
+2.  Ensure the `tailscale` command is in your system's PATH.
+3.  The Host Command Relay executes `tailscale` commands on the host, so Tailscale doesn't need to be installed _inside_ the TailBrain Docker container itself.
 
-3. Start the development servers:
-   ```bash
-   npm run dev
-   ```
+### 📂 Path to Docker Compose Files
 
-This will start both the frontend and backend in development mode.
+When adding Docker Compose applications in TailBrain:
 
-## Troubleshooting
+- Provide the **absolute path** to the `docker-compose.yml` file as it exists on your host machine. The command relay will use this path to execute `docker-compose` commands.
 
-### Docker Socket Access
+### 🤯 Docker Build Issues
 
-If you encounter permission errors accessing the Docker socket:
+#### `Failed to prepare extraction snapshot` Error
 
-```
-Error: Got permission denied while trying to connect to the Docker daemon socket
-```
+This error is sometimes seen on Windows with Docker Desktop. Try these solutions:
 
-Ensure your user has the necessary permissions:
+1.  **🧹 Clean Docker Resources:**
+    ```powershell
+    # Windows PowerShell
+    docker system prune -a
+    ```
+2.  **🔄 Restart Docker Desktop.**
+3.  **🚫 Run Docker with Buildkit Disabled (Temporary):**
+    ```powershell
+    # Windows PowerShell
+    $env:DOCKER_BUILDKIT=0
+    docker-compose build
+    # Unset after: $env:DOCKER_BUILDKIT=$null (or just for that command)
+    ```
+4.  **🔥 Use Bake for Better Performance (Experimental):**
+    ```powershell
+    # Windows PowerShell
+    $env:COMPOSE_BAKE=true
+    docker-compose build
+    ```
+5.  ** Nukes Everything! Last Resort - Reset Docker Desktop:**
+    Open Docker Desktop Settings -> Troubleshoot -> "Clean / Purge data" -> Restart.
 
-```bash
-# Linux
-sudo usermod -aG docker $USER
-# Then log out and back in
-```
+---
 
-### Tailscale Command Not Found
+## 🏗️ Building from Source (After Code Changes)
 
-If the application can't find the Tailscale command:
-
-1. Ensure Tailscale is installed
-2. Make sure the Tailscale command is in your PATH
-3. If running in Docker, you may need to install Tailscale in the container or make the host's Tailscale accessible
-
-### Path to Docker Compose Files
-
-When using the Docker Compose management feature:
-
-- **In Docker:** Paths should be accessible from within the container. You may need to add volume mounts in your docker-compose.yml.
-- **Native:** Paths should be absolute and accessible to the backend process.
-
-### Docker Build Issues
-
-#### Failed to Prepare Extraction Snapshot Error
-
-If you encounter an error like this during docker-compose build:
-
-```
-failed to solve: failed to prepare extraction snapshot "extract-XXXXXXXXX-XXXX sha256:XXXXXXX": parent snapshot sha256:XXXXXXX does not exist: not found
-```
-
-This is commonly seen on Windows with Docker Desktop and can be resolved by trying one of the following:
-
-1. **Clean Docker Resources**:
-
-   ```powershell
-   # Windows PowerShell
-   docker system prune -a
-   ```
-
-2. **Restart Docker Desktop**:
-
-   - Right-click the Docker Desktop icon in the system tray
-   - Select "Restart Docker Desktop"
-
-3. **Run Docker with Buildkit Disabled**:
-
-   ```powershell
-   # Windows PowerShell
-   $env:DOCKER_BUILDKIT=0
-   docker-compose build
-   ```
-
-4. **Use Bake for Better Performance** (as suggested in the error message):
-
-   ```powershell
-   # Windows PowerShell
-   $env:COMPOSE_BAKE=true
-   docker-compose build
-   ```
-
-5. **Last Resort**: Completely reset Docker Desktop
-   - Open Docker Desktop Settings
-   - Go to "Troubleshoot"
-   - Click "Clean / Purge data"
-   - Restart Docker Desktop
-
-## Building from Source
-
-If you've made changes to the code, you need to rebuild the Docker image:
+If you've modified TailBrain's code and are using the Docker setup, you'll need to rebuild the Docker image:
 
 ```bash
-# Using Docker Compose
+# This is handled by the start-dev.sh and start-dev.bat scripts,
+# but if you need to do it manually:
 docker-compose build
-
-# Using Docker directly
-docker build -t tailbrain .
 ```
 
-Then restart the container:
+Then, restart the services:
 
 ```bash
-# Using Docker Compose
 docker-compose up -d
-
-# Using Docker directly
-docker stop tailbrain
-docker rm tailbrain
-docker run -d -p 7654:7654 -v /var/run/docker.sock:/var/run/docker.sock:ro --name tailbrain tailbrain
 ```
 
-## Contributing
+(Or simply re-run `start-dev.sh`/`start-dev.bat`)
+
+---
+
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+<div align="center">
+  <small>Happy Tailgating & Dockering!</small>
+</div>
