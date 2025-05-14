@@ -1,5 +1,8 @@
 FROM node:18-alpine
 
+# Install Docker CLI and other required tools
+RUN apk add --no-cache docker-cli docker-compose curl
+
 WORKDIR /app
 
 # Copy package.json files first for better cache utilization
@@ -14,6 +17,9 @@ RUN npm install --prefix backend
 
 # Copy the rest of the application
 COPY . .
+
+# Make host command relay scripts executable (for Linux environments)
+RUN chmod +x host-command-relay.js start-relay.js || true
 
 # Build the frontend
 RUN npm run build

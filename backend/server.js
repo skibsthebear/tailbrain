@@ -123,7 +123,6 @@ app.post('/api/docker-compose/apps', (req, res) => {
   if (!name || !composePath) {
     return res.status(400).json({ error: 'Name and path are required for Docker Compose app' });
   }
-  // Basic validation for path (ends with .yml or .yaml)
   if (!composePath.endsWith('.yml') && !composePath.endsWith('.yaml')) {
     return res.status(400).json({ error: 'Path must be a .yml or .yaml file' });
   }
@@ -173,43 +172,15 @@ app.post('/api/docker-compose/down', async (req, res) => {
 
 // Serve static frontend files in production
 if (process.env.NODE_ENV === 'production') {
-  // IMPORTANT: Set up middleware to handle URLs with colons properly
-  // This disables the automatic route parameter functionality for static files
-  // and prevents errors like "Missing parameter name" with URLs like "https://..."
-  app.use((req, res, next) => {
-    // Store the original URL parsing method
-    const originalUrl = req.url;
-    
-    // Call next middleware
-    next();
-    
-    // Restore original URL after middleware
-    req.url = originalUrl;
-  });
-  
-  // Serve static files from the React app
-  const frontendPath = path.join(__dirname, '../frontend/dist');
-  app.use(express.static(frontendPath));
-  
-  // Update the catch-all route to be more specific about which paths to handle
-  // This prevents Express from trying to parse URLs in asset files
-  app.get('/*', (req, res) => {
-    if (!req.path.startsWith('/api') && 
-        !req.path.includes('.') && // Skip files with extensions like .js, .css
-        !req.path.includes(':')) { // Skip paths with colons (like in URLs)
-      res.sendFile(path.join(frontendPath, 'index.html'));
-    } else if (!req.path.startsWith('/api')) {
-      // For asset files that may contain URLs with colons
-      res.sendFile(path.join(frontendPath, req.path), (err) => {
-        if (err) {
-          // If the specific file isn't found, default to index.html for client-side routing
-          res.sendFile(path.join(frontendPath, 'index.html'));
-        }
-      });
-    } else {
-      // Let API requests fall through to 404
-      next();
-    }
+  const frontendDistPath = path.join(__dirname, '../frontend/dist');
+
+  // Serve static assets from the 'dist' directory
+  app.use(express.static(frontendDistPath));
+
+  // For any other GET requests not handled by API routes or static assets, serve index.html.
+  // In Express 5, wildcard routes need a proper regex pattern
+  app.get('/{*filepath}', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 }
 
