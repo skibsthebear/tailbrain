@@ -34,91 +34,68 @@ TailBrain is designed to work on both Windows and Linux systems. However, there 
 - Use Linux paths for Docker Compose file locations (e.g., `/path/to/docker-compose.yml`)
 - Make sure the user running TailBrain has permissions to access the Docker socket
 
-## Running with Docker
+## Running with Docker (Recommended)
 
-### Option 1: Using Docker Compose (Recommended)
+This method uses Docker Compose and includes starting the Host Command Relay automatically.
 
-1. Clone this repository:
+1.  Clone this repository:
 
-   ```bash
-   git clone <repository-url>
-   cd tailbrain
-   ```
+    ```bash
+    git clone <repository-url>
+    cd tailbrain
+    ```
 
-2. Build and run the application:
-   ```bash
-   docker-compose build  # Build the image with your latest changes
-   docker-compose up -d  # Run in detached mode
-   ```
+2.  Install Host Command Relay dependencies (if you haven't already):
 
-The application will be available at http://localhost:7654
+    ```bash
+    npm run relay:install
+    ```
 
-### Option 2: Using Docker Directly (Don't make life miserable for yourself)
+    This step only needs to be run once, or when `express` or `cors` dependencies for the relay need an update.
 
-1. Clone this repository:
+3.  Run the appropriate start script for your OS:
 
-   ```bash
-   git clone <repository-url>
-   cd tailbrain
-   ```
+    - **For Linux/macOS:**
+      Make the script executable (if you haven't already):
 
-2. Build the Docker image:
+      ```bash
+      chmod +x start-dev.sh
+      ```
 
-   ```bash
-   docker build -t tailbrain .
-   ```
+      Then run:
 
-3. Run the container:
+      ```bash
+      ./start-dev.sh
+      ```
 
-   ```bash
-   # Linux
-   docker run -d -p 7654:7654 -v /var/run/docker.sock:/var/run/docker.sock:ro --name tailbrain tailbrain
+      This will start the Host Command Relay in the background, build the Docker images, and then start the services.
 
-   # Windows (PowerShell)
-   docker run -d -p 7654:7654 -v //var/run/docker.sock:/var/run/docker.sock:ro --name tailbrain tailbrain
-   ```
+    - **For Windows:**
+      ```bash
+      start-dev.bat
+      ```
+      This will start the Host Command Relay in a new window, build the Docker images, and then start the services.
 
-The application will be available at http://localhost:7654
+The application will be available at `http://localhost:7654`. The Host Command Relay will be running on port `7655`.
+
+To stop the Docker services, navigate to the `tailbrain` directory in a terminal and run:
+
+```bash
+docker-compose down
+```
+
+To stop the Host Command Relay:
+
+- On Linux/macOS, if you noted the PID, use `kill <PID>`. Otherwise, you may need to find and kill the `node start-relay.js` process.
+- On Windows, close the "Host Relay" command prompt window.
 
 ## Host Command Relay
 
-TailBrain now uses a special Host Command Relay system that allows the Docker container to execute commands on the host machine. This is particularly useful for running Tailscale and Docker commands that need to operate on the host system.
+TailBrain uses a special Host Command Relay system that allows the Docker container to execute commands on the host machine. This is particularly useful for running Tailscale and Docker commands that need to operate on the host system.
 
-### Setting Up the Host Command Relay
+The `start-dev.sh` (for Linux/macOS) and `start-dev.bat` (for Windows) scripts handle starting the Host Command Relay for you.
 
-1. Install the necessary dependencies:
-
-   ```bash
-   # Use the convenience script to install required dependencies
-   npm run relay:install
-   ```
-
-2. Run the Host Command Relay script on your host machine:
-
-   ```bash
-   # Option 1: Use the npm script (recommended)
-   npm run relay
-
-   # Option 2: Use the startup script directly
-   node start-relay.js
-
-   # Option 3: Manual setup
-   # Install dependencies if needed
-   npm install -g express cors
-
-   # Run the relay service (leave this running)
-   node host-command-relay.js
-   ```
-
-3. When starting the Docker container, make sure it can reach the host:
-   ```bash
-   # The docker-compose.yml already includes this configuration
-   # For manual docker runs, use:
-   docker run -d -p 7654:7654 -v /var/run/docker.sock:/var/run/docker.sock:ro \
-     --add-host=host.docker.internal:host-gateway \
-     -e HOST_RELAY_URL=http://host.docker.internal:7655 \
-     --name tailbrain tailbrain
-   ```
+The relay script (`host-command-relay.js`) runs on your host machine and listens on port `7655` by default. The Docker container is configured via the `HOST_RELAY_URL` environment variable in the `docker-compose.yml` file to communicate with `http://host.docker.internal:7655`.
 
 This relay approach is more secure than giving the container full access to the host system, as it only allows execution of specific commands via a controlled API.
 
