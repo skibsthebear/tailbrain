@@ -199,4 +199,75 @@ export const getDockerContainerStats = async (containerId) => {
     console.error('Error getting Docker container stats:', error);
     throw error;
   }
+};
+
+// Docker Network Management API functions
+export const listDockerNetworks = async () => {
+  try {
+    const response = await axios.get(`${API_URL}/docker/networks`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching Docker networks:', error);
+    throw error;
+  }
+};
+
+export const getDockerNetworkDetails = async (networkId) => {
+  try {
+    const response = await axios.get(`${API_URL}/docker/networks/${networkId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching Docker network details:', error);
+    throw error;
+  }
+};
+
+export const getContainerNetworks = async (containerId) => {
+  try {
+    const response = await axios.get(`${API_URL}/docker/containers/${containerId}/networks`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching container networks:', error);
+    throw error;
+  }
+};
+
+export const connectContainerToNetwork = async (containerId, networkId) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/containers/${containerId}/networks/${networkId}/connect`);
+    return response.data;
+  } catch (error) {
+    console.error('Error connecting container to network:', error);
+    throw error;
+  }
+};
+
+export const disconnectContainerFromNetwork = async (containerId, networkId) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/containers/${containerId}/networks/${networkId}/disconnect`);
+    return response.data;
+  } catch (error) {
+    console.error('Error disconnecting container from network:', error);
+    throw error;
+  }
+};
+
+export const createDockerNetwork = async (name, driver = 'bridge', options = []) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/networks`, { name, driver, options });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating Docker network:', error);
+    throw error;
+  }
+};
+
+export const removeDockerNetwork = async (networkId) => {
+  try {
+    const response = await axios.delete(`${API_URL}/docker/networks/${networkId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error removing Docker network:', error);
+    throw error;
+  }
 }; 

@@ -1,11 +1,13 @@
-import { Container, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, VStack, HStack, Button, Text, Alert, AlertIcon, Box } from '@chakra-ui/react';
+import { Container, Heading, Tabs, TabList, TabPanels, Tab, TabPanel, VStack, HStack, Button, Text, Alert, AlertIcon, Box, Image } from '@chakra-ui/react';
 import { RepeatIcon } from '@chakra-ui/icons';
 import ServePortsView from './components/ServePortsView';
 import FunnelPortsView from './components/FunnelPortsView';
 import DockerContainersView from './components/DockerContainersView';
 import DockerComposeView from './components/DockerComposeView';
+import DockerNetworksView from './components/DockerNetworksView';
 import React, { useEffect, useState } from 'react'; // Added useState
 import { useAppContext } from './context/AppContext'; // Import useAppContext
+import logoImage from '../../logo.png'; // Import the logo image
 
 // Error boundary component to catch runtime errors
 class ErrorBoundary extends React.Component {
@@ -90,7 +92,10 @@ function App() {
       <Container maxW="container.xl" py={8}>
         <VStack spacing={8} align="stretch">
           <HStack justifyContent="space-between" alignItems="center">
-            <Heading as="h1" size="xl">TailBrain Dashboard</Heading>
+            <HStack spacing={3}>
+              <Image src={logoImage} alt="TailBrain Logo" boxSize="40px" />
+              <Heading as="h1" size="xl">TailBrain Dashboard</Heading>
+            </HStack>
             <VStack align="flex-end" spacing={1}>
               <Button
                 leftIcon={<RepeatIcon />}
@@ -123,6 +128,7 @@ function App() {
               <Tab>Tailscale Funnel</Tab>
               <Tab>Docker Containers</Tab>
               <Tab>Docker Compose</Tab>
+              <Tab>Docker Networks</Tab>
             </TabList>
             <TabPanels>
               <TabPanel>
@@ -143,6 +149,11 @@ function App() {
               <TabPanel>
                 <ErrorBoundary>
                   <DockerComposeView />
+                </ErrorBoundary>
+              </TabPanel>
+              <TabPanel>
+                <ErrorBoundary>
+                  <DockerNetworksView />
                 </ErrorBoundary>
               </TabPanel>
             </TabPanels>

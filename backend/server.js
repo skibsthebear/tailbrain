@@ -19,6 +19,13 @@ const {
   restartDockerContainer,
   getDockerContainerLogs,
   getDockerContainerStats,
+  listDockerNetworks,
+  inspectDockerNetwork,
+  getContainerNetworks,
+  connectContainerToNetwork,
+  disconnectContainerFromNetwork,
+  createDockerNetwork,
+  removeDockerNetwork,
 } = require('./commandExecutor');
 
 const app = express();
@@ -293,6 +300,100 @@ app.get('/api/docker/containers/:id/stats', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get Docker container stats', details: error.message });
+  }
+});
+
+// Docker Network Management Endpoints
+app.get('/api/docker/networks', async (req, res) => {
+  try {
+    const networks = await listDockerNetworks();
+    res.json(networks);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to list Docker networks', details: error.message });
+  }
+});
+
+app.get('/api/docker/networks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Network ID is required' });
+    }
+    
+    const networkDetails = await inspectDockerNetwork(id);
+    res.json(networkDetails);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get Docker network details', details: error.message });
+  }
+});
+
+app.get('/api/docker/containers/:id/networks', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const networks = await getContainerNetworks(id);
+    res.json(networks);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get container networks', details: error.message });
+  }
+});
+
+app.post('/api/docker/containers/:containerId/networks/:networkId/connect', async (req, res) => {
+  try {
+    const { containerId, networkId } = req.params;
+    if (!containerId || !networkId) {
+      return res.status(400).json({ error: 'Container ID and Network ID are required' });
+    }
+    
+    const result = await connectContainerToNetwork(containerId, networkId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to connect container to network', details: error.message });
+  }
+});
+
+app.post('/api/docker/containers/:containerId/networks/:networkId/disconnect', async (req, res) => {
+  try {
+    const { containerId, networkId } = req.params;
+    if (!containerId || !networkId) {
+      return res.status(400).json({ error: 'Container ID and Network ID are required' });
+    }
+    
+    const result = await disconnectContainerFromNetwork(containerId, networkId);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to disconnect container from network', details: error.message });
+  }
+});
+
+app.post('/api/docker/networks', async (req, res) => {
+  try {
+    const { name, driver, options } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Network name is required' });
+    }
+    
+    const result = await createDockerNetwork(name, driver || 'bridge', options || []);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create Docker network', details: error.message });
+  }
+});
+
+app.delete('/api/docker/networks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Network ID is required' });
+    }
+    
+    const result = await removeDockerNetwork(id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove Docker network', details: error.message });
   }
 });
 

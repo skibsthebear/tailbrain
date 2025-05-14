@@ -354,6 +354,186 @@ function getDockerContainerStats(containerId) {
   });
 }
 
+// Function to list all Docker networks
+function listDockerNetworks() {
+  return new Promise((resolve, reject) => {
+    const command = `docker network ls --format "{{json .}}"`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      try {
+        const lines = stdout.trim().split('\n').filter(line => line.length > 0);
+        const networks = lines.map(line => JSON.parse(line));
+        resolve(networks);
+      } catch (e) {
+        console.error('Failed to parse JSON from docker network ls:', e);
+        reject(new Error('Failed to parse Docker network output'));
+      }
+    }).catch(error => {
+      console.error('Error executing docker network ls:', error);
+      reject(error);
+    });
+  });
+}
+
+// Function to get detailed information about a specific network
+function inspectDockerNetwork(networkId) {
+  return new Promise((resolve, reject) => {
+    if (!networkId) {
+      reject(new Error('Network ID is required'));
+      return;
+    }
+
+    const command = `docker network inspect ${networkId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      try {
+        const networkDetails = JSON.parse(stdout);
+        resolve(networkDetails);
+      } catch (e) {
+        console.error(`Failed to parse JSON from docker network inspect ${networkId}:`, e);
+        reject(new Error('Failed to parse Docker network details'));
+      }
+    }).catch(error => {
+      console.error(`Error executing docker network inspect ${networkId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+// Function to get all networks a container is connected to
+function getContainerNetworks(containerId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    // Fix potential JSON parsing issues with proper quoting
+    const command = `docker container inspect --format "{{json .NetworkSettings.Networks}}" ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      try {
+        console.log(`Raw network data for ${containerId}:`, stdout);
+        
+        // Handle empty output
+        if (!stdout || stdout.trim() === '' || stdout.trim() === 'null') {
+          console.log(`No network data returned for container ${containerId}`);
+          resolve({});
+          return;
+        }
+        
+        const networks = JSON.parse(stdout.trim());
+        console.log(`Parsed network data for ${containerId}:`, networks);
+        
+        resolve(networks);
+      } catch (e) {
+        console.error(`Failed to parse JSON from container networks for ${containerId}:`, e);
+        console.error(`Raw stdout was: ${stdout}`);
+        // Return empty object instead of rejecting to avoid UI errors
+        resolve({});
+      }
+    }).catch(error => {
+      console.error(`Error retrieving networks for container ${containerId}:`, error);
+      // Return empty object instead of rejecting to avoid UI errors
+      resolve({});
+    });
+  });
+}
+
+// Function to connect a container to a network
+function connectContainerToNetwork(containerId, networkId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId || !networkId) {
+      reject(new Error('Container ID and Network ID are required'));
+      return;
+    }
+
+    const command = `docker network connect ${networkId} ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Connected container ${containerId} to network ${networkId}`);
+      resolve({ 
+        success: true, 
+        message: `Container connected to ${networkId} successfully` 
+      });
+    }).catch(error => {
+      console.error(`Error connecting container ${containerId} to network ${networkId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+// Function to disconnect a container from a network
+function disconnectContainerFromNetwork(containerId, networkId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId || !networkId) {
+      reject(new Error('Container ID and Network ID are required'));
+      return;
+    }
+
+    const command = `docker network disconnect ${networkId} ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Disconnected container ${containerId} from network ${networkId}`);
+      resolve({ 
+        success: true, 
+        message: `Container disconnected from ${networkId} successfully` 
+      });
+    }).catch(error => {
+      console.error(`Error disconnecting container ${containerId} from network ${networkId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+// Function to create a new Docker network
+function createDockerNetwork(name, driver = 'bridge', options = []) {
+  return new Promise((resolve, reject) => {
+    if (!name) {
+      reject(new Error('Network name is required'));
+      return;
+    }
+
+    const optionsString = options.map(opt => `--opt ${opt}`).join(' ');
+    const command = `docker network create --driver ${driver} ${optionsString} ${name}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Created Docker network ${name} with driver ${driver}`);
+      resolve({ 
+        success: true, 
+        message: `Network ${name} created successfully`,
+        networkId: stdout.trim() 
+      });
+    }).catch(error => {
+      console.error(`Error creating Docker network ${name}:`, error);
+      reject(error);
+    });
+  });
+}
+
+// Function to remove a Docker network
+function removeDockerNetwork(networkId) {
+  return new Promise((resolve, reject) => {
+    if (!networkId) {
+      reject(new Error('Network ID is required'));
+      return;
+    }
+
+    const command = `docker network rm ${networkId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Removed Docker network ${networkId}`);
+      resolve({ 
+        success: true, 
+        message: `Network removed successfully`
+      });
+    }).catch(error => {
+      console.error(`Error removing Docker network ${networkId}:`, error);
+      reject(error);
+    });
+  });
+}
+
 // Export the functions
 module.exports = {
   getTailscaleServeStatus,
@@ -369,5 +549,12 @@ module.exports = {
   killDockerContainer,
   restartDockerContainer,
   getDockerContainerLogs,
-  getDockerContainerStats
+  getDockerContainerStats,
+  listDockerNetworks,
+  inspectDockerNetwork,
+  getContainerNetworks,
+  connectContainerToNetwork,
+  disconnectContainerFromNetwork,
+  createDockerNetwork,
+  removeDockerNetwork
 }; 

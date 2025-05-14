@@ -4,6 +4,7 @@ import {
   fetchFunnelStatus,
   fetchDockerContainers,
   getDockerComposeApps,
+  listDockerNetworks,
 } from '../api';
 
 // Create context with a default value to prevent null context errors
@@ -12,6 +13,7 @@ const defaultContextValue = {
   funnelData: {},
   dockerData: [],
   dockerComposeApps: [],
+  networkData: [],
   isLoading: false,
   error: null,
   lastUpdated: null,
@@ -20,6 +22,7 @@ const defaultContextValue = {
   setFunnelData: () => console.warn("Default setFunnelData called - context not initialized"),
   setDockerData: () => console.warn("Default setDockerData called - context not initialized"),
   setDockerComposeApps: () => console.warn("Default setDockerComposeApps called - context not initialized"),
+  setNetworkData: () => console.warn("Default setNetworkData called - context not initialized"),
 };
 
 const AppContext = createContext(defaultContextValue);
@@ -32,6 +35,7 @@ export const AppProvider = ({ children }) => {
   const [funnelData, setFunnelData] = useState({});
   const [dockerData, setDockerData] = useState([]);
   const [dockerComposeApps, setDockerComposeApps] = useState([]);
+  const [networkData, setNetworkData] = useState([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -42,7 +46,7 @@ export const AppProvider = ({ children }) => {
     setIsLoading(true);
     setError(null);
     try {
-      const [serve, funnel, docker, composeApps] = await Promise.all([
+      const [serve, funnel, docker, composeApps, networks] = await Promise.all([
         fetchServeStatus().catch(err => {
           console.error("Error fetching serve status:", err);
           return [];
@@ -58,13 +62,18 @@ export const AppProvider = ({ children }) => {
         getDockerComposeApps().catch(err => {
           console.error("Error fetching docker compose apps:", err);
           return [];
+        }),
+        listDockerNetworks().catch(err => {
+          console.error("Error fetching docker networks:", err);
+          return [];
         })
       ]);
-      console.log("Data fetched successfully:", { serve, funnel, docker, composeApps });
+      console.log("Data fetched successfully:", { serve, funnel, docker, composeApps, networks });
       setServeData(serve);
       setFunnelData(funnel);
       setDockerData(docker);
       setDockerComposeApps(composeApps);
+      setNetworkData(networks);
       setLastUpdated(new Date().toLocaleString());
     } catch (err) {
       console.error("Error loading all data in root Promise.all:", err);
@@ -73,6 +82,7 @@ export const AppProvider = ({ children }) => {
       setFunnelData({});
       setDockerData([]);
       setDockerComposeApps([]);
+      setNetworkData([]);
     } finally {
       setIsLoading(false);
     }
@@ -83,6 +93,7 @@ export const AppProvider = ({ children }) => {
     funnelData,
     dockerData,
     dockerComposeApps,
+    networkData,
     isLoading,
     error,
     lastUpdated,
@@ -91,6 +102,7 @@ export const AppProvider = ({ children }) => {
     setFunnelData,
     setDockerData,
     setDockerComposeApps,
+    setNetworkData,
   };
   
   console.log("AppProvider returning with value:", value);

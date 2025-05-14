@@ -39,12 +39,34 @@ import {
   StatNumber,
   StatHelpText,
   Progress,
-  Badge
+  Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  MenuDivider,
+  Grid,
+  SimpleGrid,
+  VStack,
+  Wrap,
+  WrapItem,
+  Stack,
+  useBreakpointValue
 } from '@chakra-ui/react';
-import { ExternalLinkIcon, RepeatIcon } from '@chakra-ui/icons';
-import { FaStop, FaSkull, FaPlay, FaFileAlt, FaChartLine } from 'react-icons/fa';
+import { ExternalLinkIcon, RepeatIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { FaStop, FaSkull, FaPlay, FaFileAlt, FaChartLine, FaNetworkWired } from 'react-icons/fa';
 import { useAppContext } from '../context/AppContext';
-import { stopDockerContainer, killDockerContainer, restartDockerContainer, getDockerContainerLogs, getDockerContainerStats } from '../api';
+import { 
+  stopDockerContainer,
+  killDockerContainer, 
+  restartDockerContainer, 
+  getDockerContainerLogs, 
+  getDockerContainerStats,
+  listDockerNetworks,
+  getContainerNetworks,
+  connectContainerToNetwork,
+  disconnectContainerFromNetwork
+} from '../api';
 
 // Helper to format creation time (example)
 const formatCreatedAt = (dockerTimestamp) => {
@@ -62,7 +84,7 @@ const formatCreatedAt = (dockerTimestamp) => {
 };
 
 // Helper to shorten container ID
-const shortenId = (id) => id ? String(id).substring(0, 12) : 'N/A';
+const shortenId = (id) => id ? String(id).substring(0, 8) : 'N/A';
 
 // Helper to parse ports from Docker format
 const parsePortsToLinks = (portsStr) => {
@@ -114,6 +136,9 @@ const DockerContainersView = () => {
   const [containerStats, setContainerStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsRefreshTimer, setStatsRefreshTimer] = useState(null);
+  const [networks, setNetworks] = useState([]);
+  const [networksLoading, setNetworksLoading] = useState(false);
+  const [containerNetworks, setContainerNetworks] = useState({});
   
   const { isOpen: isLogsOpen, onOpen: onLogsOpen, onClose: onLogsClose } = useDisclosure();
   const { 
@@ -122,6 +147,142 @@ const DockerContainersView = () => {
     onClose: onStatsClose 
   } = useDisclosure();
   const toast = useToast();
+
+  // Responsive value for card content direction
+  const cardContentDirection = useBreakpointValue({ base: "column", sm: "row" });
+  const actionsDirection = useBreakpointValue({ base: "column", sm: "row" });
+  const detailsFontSize = useBreakpointValue({ base: "2xs", md: "xs"});
+  const headingFontSize = useBreakpointValue({ base: "xs", md: "sm"});
+  const iconBoxSize = useBreakpointValue({base: "0.7em", md: "0.8em"});
+  const cardMinHeight = useBreakpointValue({ base: "230px", sm: "240px", md: "250px" });
+
+  // Fetch networks on component mount
+  useEffect(() => {
+    fetchNetworks();
+  }, []);
+
+  // Fetch container networks when dockerData changes
+  useEffect(() => {
+    if (dockerData && dockerData.length > 0) {
+      const fetchAllNetworks = async () => {
+        setNetworksLoading(true);
+        try {
+          await Promise.all(
+            dockerData.map(container => 
+              fetchContainerNetworks(container.ID || container.Id)
+            )
+          );
+        } catch (error) {
+          console.error('Error fetching container networks:', error);
+        } finally {
+          setNetworksLoading(false);
+        }
+      };
+      
+      fetchAllNetworks();
+    }
+  }, [dockerData]);
+
+  // Function to fetch available networks
+  const fetchNetworks = async () => {
+    setNetworksLoading(true);
+    try {
+      const networkList = await listDockerNetworks();
+      setNetworks(networkList);
+    } catch (error) {
+      console.error('Error fetching networks:', error);
+      toast({
+        title: 'Error fetching networks',
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setNetworksLoading(false);
+    }
+  };
+
+  // Function to fetch networks for a specific container
+  const fetchContainerNetworks = async (containerId) => {
+    try {
+      const containerNetworksList = await getContainerNetworks(containerId);
+      console.log(`Networks for container ${containerId}:`, containerNetworksList);
+      
+      // Ensure we have valid network data before updating state
+      if (containerNetworksList && typeof containerNetworksList === 'object') {
+        setContainerNetworks(prev => ({
+          ...prev,
+          [containerId]: containerNetworksList
+        }));
+        return containerNetworksList;
+      } else {
+        console.warn(`Invalid network data for container ${containerId}:`, containerNetworksList);
+        return {};
+      }
+    } catch (error) {
+      console.error(`Error fetching networks for container ${containerId}:`, error);
+      return {};
+    }
+  };
+
+  // Function to handle network change
+  const handleNetworkChange = async (containerId, containerName, networkId, action = 'connect') => {
+    setActionLoading(true);
+    try {
+      if (action === 'connect') {
+        await connectContainerToNetwork(containerId, networkId);
+        toast({
+          title: 'Network connected',
+          description: `Container ${containerName} connected to network`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      } else if (action === 'disconnect') {
+        // Get current networks for this container
+        const currentNetworks = containerNetworks[containerId];
+        // Get current network IDs
+        const currentNetworkIds = currentNetworks ? Object.keys(currentNetworks) : [];
+        
+        // Prevent disconnecting from all networks
+        if (currentNetworkIds.length <= 1) {
+          toast({
+            title: 'Cannot disconnect',
+            description: 'Container must be connected to at least one network',
+            status: 'warning',
+            duration: 3000,
+            isClosable: true,
+          });
+          setActionLoading(false);
+          return;
+        }
+        
+        await disconnectContainerFromNetwork(containerId, networkId);
+        toast({
+          title: 'Network disconnected',
+          description: `Container ${containerName} disconnected from network`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+      
+      // Refresh data
+      await loadAllData();
+      await fetchContainerNetworks(containerId);
+    } catch (error) {
+      toast({
+        title: `Failed to ${action} network`,
+        description: error.message,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Clean up timer when stats modal is closed
   useEffect(() => {
@@ -327,183 +488,362 @@ const DockerContainersView = () => {
   };
 
   const getStatusTag = (status) => {
-    if (!status) return <Tag>Unknown</Tag>;
+    if (!status) return <Tag size="sm">Unknown</Tag>;
     const s = String(status).toLowerCase();
-    if (s.startsWith('up') || s.includes('running')) return <Tag colorScheme="green">{status}</Tag>;
-    if (s.startsWith('exited') || s.includes('stopped')) return <Tag colorScheme="red">{status}</Tag>;
-    return <Tag colorScheme="gray">{status}</Tag>;
+    if (s.startsWith('up') || s.includes('running')) return <Tag size="sm" variant="subtle" colorScheme="green">{status}</Tag>;
+    if (s.startsWith('exited') || s.includes('stopped')) return <Tag size="sm" variant="subtle" colorScheme="red">{status}</Tag>;
+    return <Tag size="sm" variant="subtle" colorScheme="gray">{status}</Tag>;
+  };
+
+  // Render network dropdown menu for a container
+  const renderNetworkMenu = (container) => {
+    const containerId = container.ID || container.Id;
+    const containerName = container.Names || 
+      (container.Name && container.Name.startsWith('/') ? container.Name.substring(1) : container.Name) || 
+      'N/A';
+    
+    const containerNetworkList = containerNetworks[containerId] || {};
+    const containerNetworkIds = Object.keys(containerNetworkList);
+    
+    // Debug network information
+    console.log(`Rendering networks for container ${containerId}:`, {
+      containerNetworkList,
+      containerNetworkIds
+    });
+    
+    // Map network IDs to network names
+    const networkNames = containerNetworkIds.map(netId => {
+      // Try to find network name from various possible structures
+      const networkObj = containerNetworkList[netId];
+      let networkName;
+      
+      if (typeof networkObj === 'object' && networkObj !== null) {
+        // First try to get the name from the network object itself
+        networkName = networkObj.Name || networkObj.name;
+        
+        // If that fails, try to find it in the networks list
+        if (!networkName) {
+          const foundNetwork = networks.find(n => n.ID === netId || n.Id === netId);
+          networkName = foundNetwork ? (foundNetwork.Name || foundNetwork.name) : null;
+        }
+      }
+      
+      // If nothing worked, just use the ID
+      return networkName || netId;
+    });
+
+    // Format for display in button
+    const displayText = networkNames.length > 0 
+      ? networkNames.join(', ')
+      : 'No Networks';
+    
+    const isTooltipNeeded = displayText.length > 20; // Example threshold for when tooltip is useful
+
+    return (
+      <Menu closeOnSelect={false}>
+        <Tooltip label={displayText} isDisabled={!isTooltipNeeded} placement="top" openDelay={300}>
+          <MenuButton 
+            as={Button} 
+            size="xs" 
+            rightIcon={<ChevronDownIcon />} 
+            isLoading={networksLoading}
+            variant="outline"
+            width="100%" // Explicitly set to 100% of its parent
+            minW="100px" // Minimum width for the button
+            maxW="180px" // Maximum width for the button to ensure consistency
+            textAlign="left"
+            overflow="hidden" // Hide overflow on the button itself
+          >
+            <HStack 
+              spacing={1} 
+              justifyContent="flex-start" 
+              width="full" 
+              title={displayText}
+            >
+              <Icon as={FaNetworkWired} boxSize={iconBoxSize} flexShrink={0} />
+              <Text 
+                noOfLines={1} 
+                fontSize={detailsFontSize} 
+                flexGrow={1} // Allow text to take available space
+                minW={0} // Essential for truncation within flex
+                // Removed explicit width/maxWidth from Text, relying on parent MenuButton's maxW and noOfLines
+              >
+                {displayText}
+              </Text>
+            </HStack>
+          </MenuButton>
+        </Tooltip>
+        <MenuList 
+          maxW="280px" // Adjusted maxW for a bit more space if needed
+          minW="200px" // Ensure a reasonable minimum width
+          maxH="200px" // Set a maximum height for the dropdown
+          overflowY="auto" // Enable vertical scrolling
+          zIndex={1500} // Keep zIndex for visibility
+          fontSize={detailsFontSize} // Apply base font size to the list
+        >
+          <MenuItem isDisabled fontWeight="bold" fontSize={detailsFontSize}>Current Networks</MenuItem>
+          {containerNetworkIds.length > 0 ? (
+            containerNetworkIds.map(netId => {
+              // Similar logic to get network name
+              const networkObj = containerNetworkList[netId];
+              let networkName;
+              
+              if (typeof networkObj === 'object' && networkObj !== null) {
+                networkName = networkObj.Name || networkObj.name;
+                if (!networkName) {
+                  const foundNetwork = networks.find(n => n.ID === netId || n.Id === netId);
+                  networkName = foundNetwork ? (foundNetwork.Name || foundNetwork.name) : null;
+                }
+              }
+              
+              return (
+                <MenuItem 
+                  key={netId} 
+                  closeOnSelect={false}
+                  onClick={() => handleNetworkChange(containerId, containerName, netId, 'disconnect')}
+                  icon={<Icon as={FaNetworkWired} color="red.500" boxSize={iconBoxSize} />}
+                  fontSize={detailsFontSize} // Apply font size to menu items
+                  py={1} // Adjust padding for items
+                >
+                  <Tooltip label={`Disconnect from ${networkName || netId}`} placement="left" openDelay={300}>
+                    <Text noOfLines={1}> Disconnect from {networkName || netId} </Text>
+                  </Tooltip>
+                </MenuItem>
+              );
+            })
+          ) : (
+            <MenuItem isDisabled fontSize={detailsFontSize}>No connected networks</MenuItem>
+          )}
+
+          <MenuDivider />
+          <MenuItem isDisabled fontWeight="bold" fontSize={detailsFontSize}>Connect to Network</MenuItem>
+          {networks.filter(network => 
+            !containerNetworkIds.includes(network.ID) && 
+            network.Driver !== 'host' && 
+            network.Driver !== 'null'
+          ).map(network => (
+            <MenuItem 
+              key={network.ID} 
+              closeOnSelect={false}
+              onClick={() => handleNetworkChange(containerId, containerName, network.ID, 'connect')}
+              icon={<Icon as={FaNetworkWired} color="green.500" boxSize={iconBoxSize} />}
+              fontSize={detailsFontSize} // Apply font size to menu items
+              py={1} // Adjust padding for items
+            >
+              <Tooltip label={`Connect to ${network.Name}`} placement="left" openDelay={300}>
+                <Text noOfLines={1}>Connect to {network.Name}</Text>
+              </Tooltip>
+            </MenuItem>
+          ))}
+        </MenuList>
+      </Menu>
+    );
+  };
+
+  // Render a container card for the responsive view
+  const renderContainerCard = (container) => {
+    const containerId = container.ID || container.Id;
+    const containerName = container.Names || 
+      (container.Name && container.Name.startsWith('/') ? container.Name.substring(1) : container.Name) || 
+      'N/A';
+    
+    const portLinks = parsePortsToLinks(container.Ports);
+    const hasWebUI = portLinks && portLinks.some(p => p.hostPort !== null);
+    const nameLink = hasWebUI ? portLinks.find(p => p.hostPort !== null)?.url : null;
+    const containerStatus = container.Status || (container.State && container.State.Status) || '';
+    const isRunning = containerStatus.toLowerCase().includes('up') || containerStatus.toLowerCase().includes('running');
+    
+    return (
+      <Box 
+        borderWidth="1px" 
+        borderRadius="md" 
+        p={3}
+        bg="white" 
+        shadow="sm"
+        w="100%"
+        display="flex" 
+        flexDirection="column" 
+        justifyContent="space-between" 
+        minH={cardMinHeight} // Use responsive min height
+        h="100%" // Make card take full height of its grid cell
+      >
+        <VStack align="stretch" spacing={2} flexGrow={1}>
+          {/* Top Row: Name, ID, Status */}
+          <Flex justify="space-between" align="flex-start" wrap="wrap" gap={1}>
+            <Box flex="1 1 auto" minW={{base: "calc(100% - 100px)", sm:"120px"}} mr={2}> 
+              {nameLink ? (
+                <Tooltip label={containerName} placement="top" openDelay={300}>
+                  <Link 
+                    href={nameLink} 
+                    color="teal.500" 
+                    isExternal
+                    display="inline-flex"
+                    alignItems="center"
+                    fontWeight="bold"
+                    fontSize={headingFontSize}
+                    noOfLines={2} // Allow up to 2 lines before truncating name
+                    wordBreak="break-word" 
+                  >
+                    {containerName}
+                    <ExternalLinkIcon ml={1} boxSize={iconBoxSize} />
+                  </Link>
+                </Tooltip>
+              ) : (
+                <Tooltip label={containerName} placement="top" openDelay={300}>
+                  <Text fontWeight="bold" fontSize={headingFontSize} wordBreak="break-word" noOfLines={2}>
+                    {containerName}
+                  </Text>
+                </Tooltip>
+              )}
+            </Box>
+            <Stack direction={{base: "row", sm: "column", md: "row"}} spacing={1} align={{base: "center", sm: "flex-end", md: "center"}} flexShrink={0}> 
+              <Tag size="sm" variant="outline" colorScheme="gray" whiteSpace="nowrap">{shortenId(containerId)}</Tag>
+              {getStatusTag(containerStatus)}
+            </Stack>
+          </Flex>
+          
+          {/* Middle Section: Image, Created, Ports, Network */}
+          <Grid 
+            templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }}
+            gap={{base: 2, md:3}} 
+            alignItems="flex-start"
+            flexGrow={1} // Allow middle section to grow
+          >
+            <VStack align="stretch" spacing={1} minH="70px"> {/* Ensure min height for this column */}
+              <Text fontSize={detailsFontSize} color="gray.500" fontWeight="medium">Image</Text>
+              <Tooltip label={container.Image} placement="top" openDelay={300}>
+                <Text fontSize={detailsFontSize} noOfLines={1} title={container.Image}>{container.Image}</Text>
+              </Tooltip>
+              
+              <Text fontSize={detailsFontSize} color="gray.500" fontWeight="medium" mt={2}>Ports</Text>
+              <Box maxH="45px" overflowY="auto" pr={1} className="custom-scrollbar">
+                {portLinks && portLinks.length > 0 ? (
+                  portLinks.map((portInfo, idx) => (
+                    <Box key={idx} mb={0}>
+                     <Tooltip label={portInfo.displayText} placement="top" openDelay={300}>
+                        <span> {/* Tooltip needs a DOM element child if Link is conditionally rendered or complex */}
+                          {portInfo.hostPort ? (
+                            <Link
+                              href={portInfo.url}
+                              color="teal.500"
+                              isExternal
+                              display="inline-flex"
+                              alignItems="center"
+                              fontSize={detailsFontSize}
+                              noOfLines={1} // Truncate individual port lines
+                            >
+                              {portInfo.displayText}
+                              <ExternalLinkIcon mx="2px" boxSize="0.7em" />
+                            </Link>
+                          ) : (
+                            <Text fontSize={detailsFontSize} noOfLines={1}>{portInfo.displayText}</Text>
+                          )}
+                        </span>
+                      </Tooltip>
+                    </Box>
+                  ))
+                ) : (
+                  <Text fontSize={detailsFontSize}>N/A</Text>
+                )}
+              </Box>
+            </VStack>
+
+            <VStack align="stretch" spacing={1} minH="70px"> {/* Ensure min height for this column */}
+              <Text fontSize={detailsFontSize} color="gray.500" fontWeight="medium">Created</Text>
+              <Text fontSize={detailsFontSize}>{formatCreatedAt(container.CreatedAt || (container.Created && new Date(container.Created * 1000).toISOString()))}</Text>
+              
+              <Text fontSize={detailsFontSize} color="gray.500" fontWeight="medium" mt={2}>Network</Text>
+              {/* The parent Box for MenuButton already has w="full" from previous edit, 
+                  which is good. We rely on MenuButton's own maxW for consistent sizing. */}
+              {renderNetworkMenu(container)}
+            </VStack>
+          </Grid>
+        </VStack>
+          
+        {/* Bottom Row: Actions */}
+        <Flex justify="center" mt={3} pt={2} borderTopWidth="1px" borderColor="gray.100">
+          <ButtonGroup size="xs" spacing={1} variant="ghost">
+            <Tooltip label="View logs" hasArrow>
+              <IconButton
+                aria-label="View logs"
+                icon={<FaFileAlt />}
+                colorScheme="blue"
+                onClick={() => handleViewLogs(containerId, containerName)}
+                isDisabled={actionLoading}
+                size="xs"
+              />
+            </Tooltip>
+            <Tooltip label="View stats" hasArrow>
+              <IconButton
+                aria-label="View stats"
+                icon={<FaChartLine />}
+                colorScheme="purple"
+                onClick={() => handleViewStats(containerId, containerName)}
+                isDisabled={actionLoading}
+                size="xs"
+              />
+            </Tooltip>
+            {isRunning && (
+              <>
+                <Tooltip label="Stop container" hasArrow>
+                  <IconButton
+                    aria-label="Stop container"
+                    icon={<FaStop />}
+                    colorScheme="yellow"
+                    onClick={() => handleStopContainer(containerId, containerName)}
+                    isDisabled={actionLoading}
+                    size="xs"
+                  />
+                </Tooltip>
+                <Tooltip label="Kill container" hasArrow>
+                  <IconButton
+                    aria-label="Kill container"
+                    icon={<FaSkull />}
+                    colorScheme="red"
+                    onClick={() => handleKillContainer(containerId, containerName)}
+                    isDisabled={actionLoading}
+                    size="xs"
+                  />
+                </Tooltip>
+              </>
+            )}
+            <Tooltip label="Restart container" hasArrow>
+              <IconButton
+                aria-label="Restart container"
+                icon={<RepeatIcon />}
+                colorScheme="green"
+                onClick={() => handleRestartContainer(containerId, containerName)}
+                isDisabled={actionLoading}
+                size="xs"
+              />
+            </Tooltip>
+          </ButtonGroup>
+        </Flex>
+      </Box>
+    );
   };
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4}>
-      <Heading size="md" mb={4}>Docker Containers</Heading>
+    <Box borderWidth="1px" borderRadius="lg" p={3} bg="gray.50" minH="100vh">
+      <Heading size="lg" mb={4} color="gray.700">Docker Containers</Heading>
       {isLoading && (!dockerData || dockerData.length === 0) && (
-         <Box display="flex" justifyContent="center" my={8}>
-          <Spinner size="xl" />
-        </Box>
+         <Flex justifyContent="center" alignItems="center" minH="200px">
+          <Spinner size="xl" color="teal.500"/>
+        </Flex>
       )}
 
       {!isLoading && !error && dockerData && dockerData.length === 0 && (
-        <Text>No running Docker containers found.</Text>
+        <Text color="gray.600">No running Docker containers found.</Text>
       )}
 
       {!isLoading && dockerData && dockerData.length > 0 && (
-        <TableContainer overflowX="auto">
-          <Table variant="simple" size="sm" layout="fixed">
-            <Thead>
-              <Tr>
-                <Th width="10%">ID</Th>
-                <Th width="15%">Name</Th>
-                <Th width="20%">Image</Th>
-                <Th width="15%">Status</Th>
-                <Th width="20%">Ports</Th>
-                <Th width="10%">Created</Th>
-                <Th width="10%" textAlign="center">Actions</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {dockerData.map((container) => {
-                const containerName = container.Names || 
-                  (container.Name && container.Name.startsWith('/') ? container.Name.substring(1) : container.Name) || 
-                  'N/A';
-                  
-                const portLinks = parsePortsToLinks(container.Ports);
-                
-                // Try to determine if container has a web UI by checking for HTTP ports
-                const hasWebUI = portLinks && portLinks.some(p => p.hostPort !== null);
-                
-                // Generate clickable name based on first available web port
-                const nameLink = hasWebUI ? 
-                  portLinks.find(p => p.hostPort !== null)?.url : 
-                  null;
-                
-                // Check if container is running
-                const containerStatus = container.Status || (container.State && container.State.Status) || '';
-                const isRunning = containerStatus.toLowerCase().includes('up') || 
-                                 containerStatus.toLowerCase().includes('running');
-                
-                return (
-                  <Tr key={container.ID || container.Id}>
-                    <Td fontFamily="monospace" isTruncated>{shortenId(container.ID || container.Id)}</Td>
-                    <Td isTruncated>
-                      {nameLink ? (
-                        <Tooltip label={`Open ${containerName} in browser`}>
-                          <Link 
-                            href={nameLink} 
-                            color="teal.500" 
-                            isExternal
-                            display="inline-flex"
-                            alignItems="center"
-                          >
-                            {containerName}
-                            <ExternalLinkIcon mx="2px" />
-                          </Link>
-                        </Tooltip>
-                      ) : (
-                        containerName
-                      )}
-                    </Td>
-                    <Td isTruncated>{container.Image}</Td>
-                    <Td>{getStatusTag(containerStatus)}</Td>
-                    <Td>
-                      {portLinks && portLinks.length > 0 ? (
-                        <Box>
-                          {portLinks.map((portInfo, idx) => (
-                            <Box key={idx} mb={1}>
-                              {portInfo.hostPort ? (
-                                <Link
-                                  href={portInfo.url}
-                                  color="teal.500"
-                                  isExternal
-                                  display="inline-flex"
-                                  alignItems="center"
-                                >
-                                  {portInfo.displayText}
-                                  <ExternalLinkIcon mx="2px" />
-                                </Link>
-                              ) : (
-                                <Text>{portInfo.displayText}</Text>
-                              )}
-                            </Box>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Text>N/A</Text>
-                      )}
-                    </Td>
-                    <Td isTruncated>{formatCreatedAt(container.CreatedAt || (container.Created && new Date(container.Created * 1000).toISOString() ))}</Td>
-                    <Td textAlign="center">
-                      <Flex 
-                        justifyContent="center" 
-                        wrap="wrap" 
-                        gap={1} 
-                        borderWidth="1px" 
-                        borderColor="gray.200" 
-                        borderRadius="md" 
-                        p={1}
-                      >
-                        <Tooltip label="View logs" hasArrow>
-                          <IconButton
-                            aria-label="View logs"
-                            icon={<FaFileAlt />}
-                            colorScheme="blue"
-                            onClick={() => handleViewLogs(container.ID || container.Id, containerName)}
-                            isDisabled={actionLoading}
-                            size="xs"
-                          />
-                        </Tooltip>
-                        <Tooltip label="View stats" hasArrow>
-                          <IconButton
-                            aria-label="View stats"
-                            icon={<FaChartLine />}
-                            colorScheme="purple"
-                            onClick={() => handleViewStats(container.ID || container.Id, containerName)}
-                            isDisabled={actionLoading}
-                            size="xs"
-                          />
-                        </Tooltip>
-                        {isRunning && (
-                          <>
-                            <Tooltip label="Stop container" hasArrow>
-                              <IconButton
-                                aria-label="Stop container"
-                                icon={<FaStop />}
-                                colorScheme="yellow"
-                                onClick={() => handleStopContainer(container.ID || container.Id, containerName)}
-                                isDisabled={actionLoading}
-                                size="xs"
-                              />
-                            </Tooltip>
-                            <Tooltip label="Kill container" hasArrow>
-                              <IconButton
-                                aria-label="Kill container"
-                                icon={<FaSkull />}
-                                colorScheme="red"
-                                onClick={() => handleKillContainer(container.ID || container.Id, containerName)}
-                                isDisabled={actionLoading}
-                                size="xs"
-                              />
-                            </Tooltip>
-                          </>
-                        )}
-                        <Tooltip label="Restart container" hasArrow>
-                          <IconButton
-                            aria-label="Restart container"
-                            icon={<RepeatIcon />}
-                            colorScheme="green"
-                            onClick={() => handleRestartContainer(container.ID || container.Id, containerName)}
-                            isDisabled={actionLoading}
-                            size="xs"
-                          />
-                        </Tooltip>
-                      </Flex>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </Tbody>
-          </Table>
-        </TableContainer>
+        <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl:3, "2xl": 4 }} spacing={4}>
+          {dockerData.map((container) => (
+            <WrapItem key={container.ID || container.Id} w="100%">
+              {renderContainerCard(container)}
+            </WrapItem>
+          ))}
+        </SimpleGrid>
       )}
 
       {/* Container Logs Modal */}

@@ -12,6 +12,10 @@
 - 👀 Monitor Tailscale `serve` ports
 - 📡 Monitor Tailscale `funnel` configurations
 - 🐳 View Docker containers with clickable links to services
+- 🌐 **Manage Docker Container Networks:**
+  - View networks a container is connected to.
+  - Connect containers to existing Docker networks.
+  - Disconnect containers from networks.
 - ➕ Add/remove Tailscale `serve` ports
 - ➖ Add/remove Tailscale `funnel` ports
 - 🚢 Manage Docker Compose applications (`up`/`down`)
@@ -151,6 +155,23 @@ Your Docker Compose application configurations (name and path) are stored persis
 - This means your configurations will survive container restarts and updates.
 
 > **Important Note:** Paths to `docker-compose.yml` files must be accessible _from the context where the command relay executes them on the host_. Usually, these would be absolute paths on your host machine.
+
+---
+
+## 🐳 Docker Container Management
+
+Beyond viewing, TailBrain offers several management features for your Docker containers directly from the UI:
+
+- **View Containers:** A responsive card-based view of all your Docker containers, showing key information like name, ID, image, status, ports, and connected networks.
+- **Lifecycle Actions:** Stop, kill, and restart containers with dedicated buttons.
+- **Inspect:** View container logs (with adjustable line count) and real-time stats (CPU, memory, network I/O, block I/O, PIDs).
+- **Network Management:** 
+  - Each container card displays the networks it's currently connected to.
+  - A dropdown menu allows you to easily connect the container to any other available Docker network (excluding `host` and `null` drivers).
+  - You can also disconnect a container from a network (provided it's connected to more than one).
+- **Docker Networks Tab:** A dedicated tab to view all Docker networks, their drivers, scope, and creation date. You can also create new networks and delete existing ones (except for default networks like bridge, host, and none).
+
+> **Note:** All Docker management commands are executed via the [Host Command Relay](#📡-understanding-the-host-command-relay), ensuring secure interaction with your Docker daemon.
 
 ---
 
