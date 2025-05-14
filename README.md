@@ -161,6 +161,48 @@ When using the Docker Compose management feature:
 - **In Docker:** Paths should be accessible from within the container. You may need to add volume mounts in your docker-compose.yml.
 - **Native:** Paths should be absolute and accessible to the backend process.
 
+### Docker Build Issues
+
+#### Failed to Prepare Extraction Snapshot Error
+
+If you encounter an error like this during docker-compose build:
+
+```
+failed to solve: failed to prepare extraction snapshot "extract-XXXXXXXXX-XXXX sha256:XXXXXXX": parent snapshot sha256:XXXXXXX does not exist: not found
+```
+
+This is commonly seen on Windows with Docker Desktop and can be resolved by trying one of the following:
+
+1. **Clean Docker Resources**:
+   ```powershell
+   # Windows PowerShell
+   docker system prune -a
+   ```
+
+2. **Restart Docker Desktop**:
+   - Right-click the Docker Desktop icon in the system tray
+   - Select "Restart Docker Desktop"
+
+3. **Run Docker with Buildkit Disabled**:
+   ```powershell
+   # Windows PowerShell
+   $env:DOCKER_BUILDKIT=0
+   docker-compose build
+   ```
+
+4. **Use Bake for Better Performance** (as suggested in the error message):
+   ```powershell
+   # Windows PowerShell
+   $env:COMPOSE_BAKE=true
+   docker-compose build
+   ```
+
+5. **Last Resort**: Completely reset Docker Desktop
+   - Open Docker Desktop Settings
+   - Go to "Troubleshoot"
+   - Click "Clean / Purge data"
+   - Restart Docker Desktop
+
 ## Building from Source
 
 If you've made changes to the code, you need to rebuild the Docker image:
