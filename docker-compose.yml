@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  tailbrain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tailbrain
+    ports:
+      - "7654:7654"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=7654 

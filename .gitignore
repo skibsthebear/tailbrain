@@ -1,0 +1,48 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+
+# Backend specific
+backend/node_modules/
+
+# Environment variables
+.env
+.env*
+!.env.example
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE specific
+.idea/
+.vscode/
+
+# Build output
+build/
+dist/
+
+# Docker related (if not committed intentionally)
+# .dockerignore (usually committed, but if generated or specific)
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional: Compiled Mac/Windows/Linux binaries
+*.exe
+*.app
+*.dmg
+*.pkg
+*.deb
+*.rpm 
