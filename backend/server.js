@@ -47,6 +47,11 @@ try {
   if (fs.existsSync(COMPOSE_CONFIG_FILE)) {
     const data = fs.readFileSync(COMPOSE_CONFIG_FILE, 'utf8');
     dockerComposeApps = JSON.parse(data);
+    // Ensure existing apps have a default upCommand if missing
+    dockerComposeApps = dockerComposeApps.map(app => ({
+      ...app,
+      upCommand: app.upCommand || 'up -d --pull=always'
+    }));
     console.log(`Loaded ${dockerComposeApps.length} Docker Compose apps from ${COMPOSE_CONFIG_FILE}`);
   } else {
     // Create empty file if it doesn't exist
@@ -167,14 +172,19 @@ app.get('/api/docker-compose/apps', (req, res) => {
 });
 
 app.post('/api/docker-compose/apps', (req, res) => {
-  const { name, path: composePath } = req.body;
+  const { name, path: composePath, upCommand } = req.body;
   if (!name || !composePath) {
     return res.status(400).json({ error: 'Name and path are required for Docker Compose app' });
   }
   if (!composePath.endsWith('.yml') && !composePath.endsWith('.yaml')) {
     return res.status(400).json({ error: 'Path must be a .yml or .yaml file' });
   }
-  const newApp = { id: uuidv4(), name, path: composePath };
+  const newApp = {
+    id: uuidv4(),
+    name,
+    path: composePath,
+    upCommand: upCommand && upCommand.trim() !== '' ? upCommand.trim() : 'up -d --pull=always'
+  };
   dockerComposeApps.push(newApp);
   console.log('Added Docker Compose app:', newApp);
   
@@ -183,6 +193,39 @@ app.post('/api/docker-compose/apps', (req, res) => {
     res.status(201).json(newApp);
   } else {
     res.status(500).json({ error: 'Failed to save Docker Compose app configuration' });
+  }
+});
+
+app.put('/api/docker-compose/apps/:id', (req, res) => {
+  const { id } = req.params;
+  const { name, path: composePath, upCommand } = req.body;
+  if (!name || !composePath) {
+    return res.status(400).json({ error: 'Name and path are required' });
+  }
+  if (!composePath.endsWith('.yml') && !composePath.endsWith('.yaml')) {
+    return res.status(400).json({ error: 'Path must be a .yml or .yaml file' });
+  }
+
+  const appIndex = dockerComposeApps.findIndex(app => app.id === id);
+
+  if (appIndex === -1) {
+    return res.status(404).json({ error: 'Docker Compose app not found' });
+  }
+
+  const updatedApp = {
+    ...dockerComposeApps[appIndex],
+    name,
+    path: composePath,
+    upCommand: upCommand && upCommand.trim() !== '' ? upCommand.trim() : 'up -d --pull=always'
+  };
+
+  dockerComposeApps[appIndex] = updatedApp;
+  console.log('Updated Docker Compose app:', updatedApp);
+
+  if (saveDockerComposeApps()) {
+    res.status(200).json(updatedApp);
+  } else {
+    res.status(500).json({ error: 'Failed to save updated Docker Compose app configuration' });
   }
 });
 
@@ -209,8 +252,23 @@ app.post('/api/docker-compose/up', async (req, res) => {
   if (!filePath) {
     return res.status(400).json({ error: 'filePath is required' });
   }
+  
+  const appConfig = dockerComposeApps.find(app => app.path === filePath);
+  if (!appConfig) {
+    // Fallback for safety, though UI should always send paths of configured apps
+    console.warn(`Compose up called for an unconfigured path: ${filePath}. Using default up command.`);
+    try {
+      const result = await executeDockerComposeUp(filePath, 'up -d --pull=always');
+      return res.json(result);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to execute docker-compose up', details: error.message });
+    }
+  }
+
+  const customUpCommand = appConfig.upCommand || 'up -d --pull=always'; // Ensure there's a command
+
   try {
-    const result = await executeDockerComposeUp(filePath);
+    const result = await executeDockerComposeUp(filePath, customUpCommand);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to execute docker-compose up', details: error.message });

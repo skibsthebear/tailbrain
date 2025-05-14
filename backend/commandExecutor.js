@@ -203,17 +203,24 @@ function removeTailscaleFunnelPort(port, protocol = 'tcp') {
 }
 
 // New function to execute docker-compose up
-function executeDockerComposeUp(composeFilePath) {
+function executeDockerComposeUp(composeFilePath, customUpCommand) {
   return new Promise((resolve, reject) => {
     if (!composeFilePath) {
       return reject(new Error('Docker Compose file path is required'));
     }
+    if (!customUpCommand || customUpCommand.trim() === '') {
+      // This case should ideally be handled by the caller (server.js) by providing a default.
+      // However, as a safeguard:
+      customUpCommand = 'up -d --pull=always'; 
+      console.warn(`executeDockerComposeUp called with empty customUpCommand for ${composeFilePath}, using default.`);
+    }
     const workDir = path.dirname(composeFilePath);
     const fileName = path.basename(composeFilePath);
-    const command = `cd "${workDir}" && docker-compose -f "${fileName}" up -d`;
+    // Use the customUpCommand in the docker-compose command
+    const command = `cd "${workDir}" && docker-compose -f "${fileName}" ${customUpCommand}`;
 
     execHostCommand(command).then(({ stdout, stderr }) => {
-      console.log(`docker-compose up successful for ${fileName} in ${workDir}:`, stdout);
+      console.log(`docker-compose with command '${customUpCommand}' successful for ${fileName} in ${workDir}:`, stdout);
       resolve({ success: true, message: 'Docker Compose up executed successfully', output: stdout });
     }).catch(error => {
       console.error(`Error executing docker-compose up for ${fileName} in ${workDir}:`, error);

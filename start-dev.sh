@@ -29,6 +29,12 @@ docker-compose up -d
 
 echo ""
 echo "TailBrain should be starting up."
+echo "Attempting to open TailBrain in your default browser..."
+# For Linux:
+(xdg-open http://localhost:7654 &)
+# For macOS, you might use:
+# (open http://localhost:7654 &)
+
 echo "The Host Command Relay is running with PID: $RELAY_PID"
 echo "You can stop the relay manually if needed using 'kill $RELAY_PID'"
 echo "To stop Docker services, run 'docker-compose down'" 

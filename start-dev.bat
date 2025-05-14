@@ -28,6 +28,9 @@ docker-compose up -d
 
 echo.
 echo TailBrain should be starting up.
+echo Attempting to open TailBrain in your default browser...
+start http://localhost:7654
+
 echo The Host Command Relay is running in a separate window.
 echo Close that window manually to stop the relay.
 echo To stop Docker services, run "docker-compose down" 

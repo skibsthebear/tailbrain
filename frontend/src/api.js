@@ -108,12 +108,22 @@ export const getDockerComposeApps = async () => {
   }
 };
 
-export const addDockerComposeApp = async (name, path) => {
+export const addDockerComposeApp = async (name, path, upCommand) => {
   try {
-    const response = await axios.post(`${API_URL}/docker-compose/apps`, { name, path });
+    const response = await axios.post(`${API_URL}/docker-compose/apps`, { name, path, upCommand });
     return response.data;
   } catch (error) {
     console.error('Error adding Docker Compose app:', error);
+    throw error;
+  }
+};
+
+export const updateDockerComposeApp = async (id, name, path, upCommand) => {
+  try {
+    const response = await axios.put(`${API_URL}/docker-compose/apps/${id}`, { name, path, upCommand });
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating Docker Compose app ${id}:`, error);
     throw error;
   }
 };
