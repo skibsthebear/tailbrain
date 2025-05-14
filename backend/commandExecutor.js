@@ -242,15 +242,132 @@ function executeDockerComposeDown(composeFilePath) {
   });
 }
 
+// New functions for Docker container operations
+function stopDockerContainer(containerId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    const command = `docker stop ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Docker container stopped: ${containerId}`, stdout);
+      resolve({ success: true, message: 'Container stopped successfully', output: stdout });
+    }).catch(error => {
+      console.error(`Error executing docker stop for ${containerId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+function killDockerContainer(containerId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    const command = `docker kill ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Docker container killed: ${containerId}`, stdout);
+      resolve({ success: true, message: 'Container killed successfully', output: stdout });
+    }).catch(error => {
+      console.error(`Error executing docker kill for ${containerId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+function restartDockerContainer(containerId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    const command = `docker restart ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Docker container restarted: ${containerId}`, stdout);
+      resolve({ success: true, message: 'Container restarted successfully', output: stdout });
+    }).catch(error => {
+      console.error(`Error executing docker restart for ${containerId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+function getDockerContainerLogs(containerId, lines = 100) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    const command = `docker logs --tail=${lines} ${containerId}`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Retrieved logs for Docker container: ${containerId}`);
+      resolve({ 
+        success: true, 
+        logs: stdout,
+        error: stderr 
+      });
+    }).catch(error => {
+      console.error(`Error retrieving logs for ${containerId}:`, error);
+      reject(error);
+    });
+  });
+}
+
+// Function to get container statistics
+function getDockerContainerStats(containerId) {
+  return new Promise((resolve, reject) => {
+    if (!containerId) {
+      reject(new Error('Container ID is required'));
+      return;
+    }
+
+    // Using --no-stream to get a single snapshot of stats instead of continuous stream
+    const command = `docker stats ${containerId} --no-stream --format "{{json .}}"`;
+    
+    execHostCommand(command).then(({ stdout, stderr }) => {
+      console.log(`Retrieved stats for Docker container: ${containerId}`);
+      try {
+        // Docker stats outputs a single line JSON object
+        const stats = JSON.parse(stdout.trim());
+        resolve({ 
+          success: true, 
+          stats
+        });
+      } catch (error) {
+        console.error(`Error parsing stats output for ${containerId}:`, error);
+        reject(new Error(`Failed to parse container stats: ${error.message}`));
+      }
+    }).catch(error => {
+      console.error(`Error retrieving stats for ${containerId}:`, error);
+      reject(error);
+    });
+  });
+}
+
 // Export the functions
 module.exports = {
   getTailscaleServeStatus,
   getTailscaleFunnelStatus,
   getDockerContainers,
   addTailscaleServePort,
-  removeTailscaleServePort,
+  removeServePort: removeTailscaleServePort,
   addTailscaleFunnelPort,
   removeTailscaleFunnelPort,
   executeDockerComposeUp,
-  executeDockerComposeDown
+  executeDockerComposeDown,
+  stopDockerContainer,
+  killDockerContainer,
+  restartDockerContainer,
+  getDockerContainerLogs,
+  getDockerContainerStats
 }; 

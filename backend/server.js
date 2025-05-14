@@ -14,6 +14,11 @@ const {
   removeTailscaleFunnelPort,
   executeDockerComposeUp,
   executeDockerComposeDown,
+  stopDockerContainer,
+  killDockerContainer,
+  restartDockerContainer,
+  getDockerContainerLogs,
+  getDockerContainerStats,
 } = require('./commandExecutor');
 
 const app = express();
@@ -215,6 +220,79 @@ app.post('/api/docker-compose/down', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: 'Failed to execute docker-compose down', details: error.message });
+  }
+});
+
+// Add new Docker container management endpoints
+app.post('/api/docker/containers/:id/stop', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const result = await stopDockerContainer(id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to stop Docker container', details: error.message });
+  }
+});
+
+app.post('/api/docker/containers/:id/kill', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const result = await killDockerContainer(id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to kill Docker container', details: error.message });
+  }
+});
+
+app.post('/api/docker/containers/:id/restart', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const result = await restartDockerContainer(id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to restart Docker container', details: error.message });
+  }
+});
+
+app.get('/api/docker/containers/:id/logs', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lines } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const result = await getDockerContainerLogs(id, lines || 100);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get Docker container logs', details: error.message });
+  }
+});
+
+// Add endpoint for getting container stats
+app.get('/api/docker/containers/:id/stats', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ error: 'Container ID is required' });
+    }
+    
+    const result = await getDockerContainerStats(id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get Docker container stats', details: error.message });
   }
 });
 

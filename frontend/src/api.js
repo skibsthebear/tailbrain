@@ -146,4 +146,57 @@ export const dockerComposeDown = async (filePath) => {
     console.error('Error executing docker-compose down:', error);
     throw error;
   }
+};
+
+// Docker Container Management API functions
+export const stopDockerContainer = async (containerId) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/containers/${containerId}/stop`);
+    return response.data;
+  } catch (error) {
+    console.error('Error stopping Docker container:', error);
+    throw error;
+  }
+};
+
+export const killDockerContainer = async (containerId) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/containers/${containerId}/kill`);
+    return response.data;
+  } catch (error) {
+    console.error('Error killing Docker container:', error);
+    throw error;
+  }
+};
+
+export const restartDockerContainer = async (containerId) => {
+  try {
+    const response = await axios.post(`${API_URL}/docker/containers/${containerId}/restart`);
+    return response.data;
+  } catch (error) {
+    console.error('Error restarting Docker container:', error);
+    throw error;
+  }
+};
+
+export const getDockerContainerLogs = async (containerId, lines = 100) => {
+  try {
+    const response = await axios.get(`${API_URL}/docker/containers/${containerId}/logs`, {
+      params: { lines }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error getting Docker container logs:', error);
+    throw error;
+  }
+};
+
+export const getDockerContainerStats = async (containerId) => {
+  try {
+    const response = await axios.get(`${API_URL}/docker/containers/${containerId}/stats`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting Docker container stats:', error);
+    throw error;
+  }
 }; 
