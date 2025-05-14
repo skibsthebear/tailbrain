@@ -1,5 +1,29 @@
-const { exec } = require('child_process');
+const axios = require('axios');
 const path = require('path'); // Added path module
+
+// Configuration for host command relay
+const HOST_RELAY_URL = process.env.HOST_RELAY_URL || 'http://host.docker.internal:7655';
+
+// Execute a command on the host system via the host-command-relay service
+function execHostCommand(command) {
+  return new Promise((resolve, reject) => {
+    console.log(`Executing host command via relay: ${command}`);
+    
+    axios.post(`${HOST_RELAY_URL}/execute`, { command })
+      .then(response => {
+        const { stdout, stderr } = response.data;
+        if (stderr) {
+          console.warn(`Warning from host command '${command}':`, stderr);
+        }
+        resolve({ stdout, stderr });
+      })
+      .catch(error => {
+        console.error(`Error executing host command '${command}':`, 
+          error.response ? error.response.data : error.message);
+        reject(error);
+      });
+  });
+}
 
 // Placeholder for actual parsing logic, to be implemented in the next step
 function parseServeOutput(stdout) {
@@ -43,32 +67,18 @@ function parseServeOutput(stdout) {
 
 function getTailscaleServeStatus() {
   return new Promise((resolve, reject) => {
-    exec('tailscale serve status', (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale serve status:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        // Tailscale might output warnings to stderr even on success
-        console.warn('Stderr from tailscale serve status:', stderr);
-      }
+    execHostCommand('tailscale serve status').then(({ stdout, stderr }) => {
       resolve(parseServeOutput(stdout));
+    }).catch(error => {
+      console.error('Error executing tailscale serve status:', error);
+      reject(error);
     });
   });
 }
 
 function getTailscaleFunnelStatus() {
   return new Promise((resolve, reject) => {
-    exec('tailscale funnel status --json', (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale funnel status:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        console.warn('Stderr from tailscale funnel status:', stderr);
-      }
+    execHostCommand('tailscale funnel status --json').then(({ stdout, stderr }) => {
       try {
         const data = JSON.parse(stdout);
         resolve(data);
@@ -76,21 +86,16 @@ function getTailscaleFunnelStatus() {
         console.error('Failed to parse JSON from tailscale funnel status:', e);
         reject(new Error('Failed to parse JSON output for funnel status'));
       }
+    }).catch(error => {
+      console.error('Error executing tailscale funnel status:', error);
+      reject(error);
     });
   });
 }
 
 function getDockerContainers() {
   return new Promise((resolve, reject) => {
-    exec('docker ps --format "{{json .}}"', (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing docker ps:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-         console.warn('Stderr from docker ps:', stderr);
-      }
+    execHostCommand('docker ps --format "{{json .}}"').then(({ stdout, stderr }) => {
       try {
         const lines = stdout.trim().split('\n').filter(line => line.length > 0);
         const containers = lines.map(line => JSON.parse(line));
@@ -99,6 +104,9 @@ function getDockerContainers() {
         console.error('Failed to parse JSON from docker ps:', e);
         reject(new Error('Failed to parse Docker output'));
       }
+    }).catch(error => {
+      console.error('Error executing docker ps:', error);
+      reject(error);
     });
   });
 }
@@ -114,17 +122,12 @@ function addTailscaleServePort(port, service, localUrl) {
     // Example command: tailscale serve add :80 http://localhost:8080
     const command = `tailscale serve add :${port} ${localUrl}`;
     
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale serve add:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        console.warn('Stderr from tailscale serve add:', stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log('Added tailscale serve port:', stdout);
       resolve({ success: true, message: 'Port added successfully', output: stdout });
+    }).catch(error => {
+      console.error('Error executing tailscale serve add:', error);
+      reject(error);
     });
   });
 }
@@ -140,17 +143,12 @@ function removeTailscaleServePort(port) {
     // Example command: tailscale serve remove :80
     const command = `tailscale serve remove :${port}`;
     
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale serve remove:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        console.warn('Stderr from tailscale serve remove:', stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log('Removed tailscale serve port:', stdout);
       resolve({ success: true, message: 'Port removed successfully', output: stdout });
+    }).catch(error => {
+      console.error('Error executing tailscale serve remove:', error);
+      reject(error);
     });
   });
 }
@@ -166,17 +164,12 @@ function addTailscaleFunnelPort(port, protocol = 'tcp') {
     // Example command: tailscale funnel 443 tcp
     const command = `tailscale funnel ${port} ${protocol}`;
     
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale funnel add:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        console.warn('Stderr from tailscale funnel add:', stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log('Added tailscale funnel port:', stdout);
       resolve({ success: true, message: 'Port funneled successfully', output: stdout });
+    }).catch(error => {
+      console.error('Error executing tailscale funnel add:', error);
+      reject(error);
     });
   });
 }
@@ -199,17 +192,12 @@ function removeTailscaleFunnelPort(port, protocol = 'tcp') {
       command = `tailscale funnel ${port} off`;
     }
     
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error executing tailscale funnel remove:', stderr);
-        reject(error);
-        return;
-      }
-      if (stderr) {
-        console.warn('Stderr from tailscale funnel remove:', stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log('Removed tailscale funnel port:', stdout);
       resolve({ success: true, message: 'Port funnel removed successfully', output: stdout });
+    }).catch(error => {
+      console.error('Error executing tailscale funnel remove:', error);
+      reject(error);
     });
   });
 }
@@ -222,18 +210,14 @@ function executeDockerComposeUp(composeFilePath) {
     }
     const workDir = path.dirname(composeFilePath);
     const fileName = path.basename(composeFilePath);
-    const command = `docker-compose -f "${fileName}" up -d`;
+    const command = `cd "${workDir}" && docker-compose -f "${fileName}" up -d`;
 
-    exec(command, { cwd: workDir }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error executing docker-compose up for ${fileName} in ${workDir}:`, stderr || error.message);
-        return reject(new Error(`Failed to run docker-compose up: ${stderr || error.message}`));
-      }
-      if (stderr) {
-        console.warn(`Stderr from docker-compose up for ${fileName} in ${workDir}:`, stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log(`docker-compose up successful for ${fileName} in ${workDir}:`, stdout);
       resolve({ success: true, message: 'Docker Compose up executed successfully', output: stdout });
+    }).catch(error => {
+      console.error(`Error executing docker-compose up for ${fileName} in ${workDir}:`, error);
+      reject(new Error(`Failed to run docker-compose up: ${error.message}`));
     });
   });
 }
@@ -246,22 +230,19 @@ function executeDockerComposeDown(composeFilePath) {
     }
     const workDir = path.dirname(composeFilePath);
     const fileName = path.basename(composeFilePath);
-    const command = `docker-compose -f "${fileName}" down`;
+    const command = `cd "${workDir}" && docker-compose -f "${fileName}" down`;
 
-    exec(command, { cwd: workDir }, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error executing docker-compose down for ${fileName} in ${workDir}:`, stderr || error.message);
-        return reject(new Error(`Failed to run docker-compose down: ${stderr || error.message}`));
-      }
-      if (stderr) {
-        console.warn(`Stderr from docker-compose down for ${fileName} in ${workDir}:`, stderr);
-      }
+    execHostCommand(command).then(({ stdout, stderr }) => {
       console.log(`docker-compose down successful for ${fileName} in ${workDir}:`, stdout);
       resolve({ success: true, message: 'Docker Compose down executed successfully', output: stdout });
+    }).catch(error => {
+      console.error(`Error executing docker-compose down for ${fileName} in ${workDir}:`, error);
+      reject(new Error(`Failed to run docker-compose down: ${error.message}`));
     });
   });
 }
 
+// Export the functions
 module.exports = {
   getTailscaleServeStatus,
   getTailscaleFunnelStatus,
@@ -271,5 +252,5 @@ module.exports = {
   addTailscaleFunnelPort,
   removeTailscaleFunnelPort,
   executeDockerComposeUp,
-  executeDockerComposeDown,
+  executeDockerComposeDown
 }; 

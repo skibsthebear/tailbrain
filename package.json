@@ -8,7 +8,9 @@
     "dev:backend": "npm run dev --prefix backend",
     "dev": "concurrently \"npm:dev:frontend\" \"npm:dev:backend\"",
     "build": "npm run build --prefix frontend",
-    "start": "NODE_ENV=production node backend/server.js"
+    "start": "NODE_ENV=production node backend/server.js",
+    "relay": "node start-relay.js",
+    "relay:install": "npm install express cors --no-save"
   },
   "keywords": [],
   "author": "",
