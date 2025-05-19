@@ -1,0 +1,4 @@
+# Python dependencies required for host-side scripts (start.py, relay system)
+requests>=2.25.0
+Flask>=2.0.0
+Flask-CORS>=3.0.0
